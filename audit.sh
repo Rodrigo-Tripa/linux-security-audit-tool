@@ -16,7 +16,7 @@
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo "Warning: This script must be used with root privileges."
+        echo "INFO: This script must be used with root privileges."
         exit 1
     fi
 }
@@ -28,7 +28,7 @@ check_uid_zero_users() {
     if [[ -n "$uid_zero_users" ]]; then
         echo "WARNING: The following users with sensitive permissions have been detected: $uid_zero_users"
     else
-        echo "No users with sensitive permissions other than root were detected"
+        echo "OK: No users with sensitive permissions other than root were detected"
     fi
 }
 
@@ -43,13 +43,13 @@ check_world_writable_files() {
         echo "WARNING: The following files have permissions that may lead to privilege escalation:
         $world_writable_files"
     else
-        echo "No sensitive files detected"
+        echo "OK: No Sensitive Files Detected"
     fi
 }
 
 #Check if SSH has any risky configurations
 
-check_ssh_configuration() {                         #It took me 11 hours to complete this function, what did I do wrong to you God...
+check_ssh_configuration() {                         # Note: This function required significant effort due to the complexity of SSH configuration parsing.
     echo "----- SSH Configuration Check -----"
 
 #Check if the SSH daemon (sshd) is installed
@@ -68,8 +68,8 @@ check_ssh_configuration() {                         #It took me 11 hours to comp
         ssh_service="sshd"
     else
         echo "WARNING: SSH service unit not found."
-        # Mesmo que o serviço não seja encontrado, continuamos a auditoria
-        # da configuração, pois esta pode existir independentemente do estado.
+        # Even if the service is not found, we continue the configuration
+        # audit, as it may exist independently of the service state
     fi
 
 #Check the service status
@@ -145,9 +145,117 @@ check_ssh_configuration() {                         #It took me 11 hours to comp
     fi
 }
 
+
+# Development note: Time tracking for implementation of this function.
+#1h:45min
+
+check_open_ports() {
+    local active_ports active_ports_srisk active_ports_risk
+    active_ports=$(ss -tulpn | awk 'NR==1 {printf "%-6s %-25s %-20s\n", $1, $5, $6; next}
+                {printf "%-6s %-25s %-20s\n", $1, $5, $6}')
+    active_ports_srisk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(22|3389|445|139|21|23|5900|3306|5432|6379|27017|11211)$')
+    active_ports_risk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(25|53|8080)$')
+    if command -v ss >/dev/null 2>&1; then
+        echo "INFO: ss command installed"
+        if [[ -n "$active_ports" ]]; then
+            echo "INFO: Active Ports:"
+            echo "$active_ports"
+            echo ""
+            if [[ -n "$active_ports_srisk" ]]; then
+                echo "WARNING: High Risk Open Ports:"
+                echo "$active_ports_srisk"
+                echo ""
+            else
+                echo "OK: No High-Risk Ports detected"
+            fi
+            if [[ -n "$active_ports_risk" ]]; then
+                echo "INFO: Medium Risk Open Ports:"
+                echo "$active_ports_risk"
+            else 
+                echo "OK: No Medium-Risk Ports Detected"
+            fi
+         else
+            echo "INFO: No Active Ports Detected"
+        fi
+    else
+        echo "ERROR: ss command NOT installed"
+    fi
+}
+
+
+check_firewall_status() {
+
+    local detect_firewall_install_ufw detect_firewall_status_ufw
+    local detect_firewall_install_firewalld detect_firewall_status_firewalld
+    local detect_firewall_install_nftables detect_firewall_status_nftables
+    local detect_firewall_install_iptables detect_firewall_status_iptables
+
+    # Detect installation
+    detect_firewall_install_ufw=$(command -v ufw)
+    detect_firewall_install_firewalld=$(systemctl list-unit-files firewalld.service 2>/dev/null | grep -q firewalld.service && echo "installed")
+    detect_firewall_install_nftables=$(command -v nft)
+    detect_firewall_install_iptables=$(command -v iptables)
+
+    # Detect status
+    detect_firewall_status_ufw=$(ufw status 2>/dev/null | grep -q "Status: active" && echo "active" || echo "inactive")
+    detect_firewall_status_firewalld=$(systemctl is-active --quiet firewalld && echo "active" || echo "inactive")
+    detect_firewall_status_nftables=$(systemctl is-active --quiet nftables && echo "active" || echo "inactive")
+    detect_firewall_status_iptables=$(iptables -S 2>/dev/null | grep -qE '(^-A)|(^-P (INPUT|FORWARD) (DROP|REJECT))' && echo "active" || echo "inactive")
+
+    # UFW
+    if [[ -n "$detect_firewall_install_ufw" ]]; then
+        echo "INFO: Firewall 'ufw' installed"
+        if [[ "$detect_firewall_status_ufw" == "active" ]]; then
+            echo "OK: Firewall 'ufw' is active"
+        else
+            echo "WARNING: Firewall 'ufw' is inactive"
+        fi
+    fi
+
+    # firewalld
+    if [[ -n "$detect_firewall_install_firewalld" ]]; then
+        echo "INFO: Firewall 'firewalld' installed"
+        if [[ "$detect_firewall_status_firewalld" == "active" ]]; then
+            echo "OK: Firewall 'firewalld' is active"
+        else
+            echo "WARNING: Firewall 'firewalld' is inactive"
+        fi
+    fi
+
+    # nftables
+    if [[ -n "$detect_firewall_install_nftables" ]]; then
+        echo "INFO: Firewall 'nftables' installed"
+        if [[ "$detect_firewall_status_nftables" == "active" ]]; then
+            echo "OK: Firewall 'nftables' is active"
+        else
+            echo "WARNING: Firewall 'nftables' is inactive"
+        fi
+    fi
+
+    # iptables
+    if [[ -n "$detect_firewall_install_iptables" ]]; then
+        echo "INFO: Firewall 'iptables' installed"
+        if [[ "$detect_firewall_status_iptables" == "active" ]]; then
+            echo "OK: Firewall 'iptables' is active"
+        else
+            echo "WARNING: Firewall 'iptables' is inactive"
+        fi
+    fi
+
+    # Global classification: only consider installed firewalls
+    if [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == "inactive" ) &&
+          ( -n "$detect_firewall_install_firewalld" && "$detect_firewall_status_firewalld" == "inactive" ) &&
+          ( -n "$detect_firewall_install_nftables" && "$detect_firewall_status_nftables" == "inactive" ) &&
+          ( -n "$detect_firewall_install_iptables" && "$detect_firewall_status_iptables" == "inactive" ) ]]; then
+        echo "CRITICAL: No active firewall detected"
+    fi
+}
+
 #Call functions
 #You can put a # before the name of each function to disable them          
 check_root
 check_uid_zero_users
 check_world_writable_files
 check_ssh_configuration
+check_open_ports
+check_firewall_status
