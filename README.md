@@ -1,6 +1,7 @@
 # Linux Security Audit Tool
 
-⚠️ **Status:** Under Development
+⚠️ **Status:** Alpha – Active Development  
+📌 **Current Version:** v0.2.0-alpha
 
 A lightweight and modular Bash-based tool designed to audit the security posture of Linux systems. The tool identifies common security misconfigurations and provides actionable insights aligned with **CIS Benchmarks** and **MITRE ATT&CK** techniques.
 
@@ -30,8 +31,8 @@ These checks help identify insecure remote access configurations aligned with CI
 ### 5. Network Open Ports Enumeration
 Enumerates active TCP and UDP listening ports using the `ss` utility. The tool categorizes ports based on their potential security risk:
 
-- **High Risk:** Services commonly targeted by attackers (e.g., SSH, RDP, SMB, databases).
-- **Medium Risk:** Services that may be legitimate but should be reviewed (e.g., DNS, SMTP, HTTP alternative ports).
+- **High Risk:** Services commonly targeted by attackers (e.g., SSH, RDP, SMB, databases such as MySQL, PostgreSQL, MongoDB, Redis).
+- **Medium Risk:** Services that may be legitimate but should be reviewed (e.g., DNS, SMTP, alternative HTTP ports).
 
 ### 6. Firewall Status Verification
 Detects and evaluates the status of common Linux firewall solutions:
@@ -41,7 +42,17 @@ Detects and evaluates the status of common Linux firewall solutions:
 - **nftables**
 - **iptables**
 
-The tool reports whether each firewall is installed and active, and raises a **CRITICAL** alert if no active firewall is detected.
+The tool reports whether each firewall is installed and active, and raises a **CRITICAL** alert if:
+- No firewall solution is installed.
+- Firewalls are installed but none are active.
+
+### 7. Automated Report Generation
+Generates a timestamped security audit report stored in the `reports/` directory with restricted permissions:
+
+- **Report File:** `result_<timestamp>.txt`
+- **Integrity Hash:** `hash_result_<timestamp>.txt` (SHA-256)
+
+This ensures audit traceability and integrity verification.
 
 ---
 
@@ -50,9 +61,10 @@ The tool reports whether each firewall is installed and active, and raises a **C
 - SUID/SGID file detection
 - Password policy analysis
 - System update and patch assessment
-- Automated report generation (TXT/JSON)
+- JSON report export
 - Running services enumeration
 - Failed login attempts analysis
+- CIS Benchmark scoring
 
 ---
 
@@ -70,4 +82,7 @@ The tool reports whether each firewall is installed and active, and raises a **C
 ## ▶️ Usage
 
 ```bash
+git clone https://github.com/rodrigo-tripa/linux-security-audit-tool.git
+cd linux-security-audit-tool
+chmod +x audit.sh
 sudo ./audit.sh
