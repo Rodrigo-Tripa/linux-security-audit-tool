@@ -24,6 +24,11 @@ check_root() {
 #Check if there are users with UID = 0
 
 check_uid_zero_users() {
+
+    echo ""
+    echo "----- UID ZERO USERS -----"
+    echo ""
+
     uid_zero_users=$(awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/')
     if [[ -n "$uid_zero_users" ]]; then
         echo "WARNING: The following users with sensitive permissions have been detected: $uid_zero_users"
@@ -35,6 +40,11 @@ check_uid_zero_users() {
 #Checks if there are world-writable files in the system
 
 check_world_writable_files() {
+
+    echo ""
+    echo "----- WORLD WRITABLE FILES -----"
+    echo ""
+
     world_writable_files=$(find / -xdev \
       \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp -o -path /var/tmp \) -prune \
       -o -type f -perm -0002 -print 2>/dev/null)
@@ -49,8 +59,11 @@ check_world_writable_files() {
 
 #Check if SSH has any risky configurations
 
-check_ssh_configuration() {                         # Note: This function required significant effort due to the complexity of SSH configuration parsing.
-    echo "----- SSH Configuration Check -----"
+check_ssh_configuration() {       
+                          # Note: This function required significant effort due to the complexity of SSH configuration parsing.
+    echo ""                     
+    echo "----- SSH CONFIGURATION -----"
+    echo ""
 
 #Check if the SSH daemon (sshd) is installed
     if ! command -v sshd >/dev/null 2>&1; then
@@ -150,6 +163,11 @@ check_ssh_configuration() {                         # Note: This function requir
 #1h:45min
 
 check_open_ports() {
+    
+    echo ""
+    echo "----- OPEN PORTS -----"
+    echo ""
+
     local active_ports active_ports_srisk active_ports_risk
     active_ports=$(ss -tulpn | awk 'NR==1 {printf "%-6s %-25s %-20s\n", $1, $5, $6; next}
                 {printf "%-6s %-25s %-20s\n", $1, $5, $6}')
@@ -184,6 +202,10 @@ check_open_ports() {
 
 
 check_firewall_status() {
+
+    echo ""
+    echo "----- FIREWALL -----"
+    echo ""
 
     local detect_firewall_install_ufw detect_firewall_status_ufw
     local detect_firewall_install_firewalld detect_firewall_status_firewalld
@@ -242,20 +264,62 @@ check_firewall_status() {
         fi
     fi
 
-    # Global classification: only consider installed firewalls
-    if [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == "inactive" ) &&
-          ( -n "$detect_firewall_install_firewalld" && "$detect_firewall_status_firewalld" == "inactive" ) &&
-          ( -n "$detect_firewall_install_nftables" && "$detect_firewall_status_nftables" == "inactive" ) &&
-          ( -n "$detect_firewall_install_iptables" && "$detect_firewall_status_iptables" == "inactive" ) ]]; then
-        echo "CRITICAL: No active firewall detected"
-    fi
+# Global classification of firewall posture
+
+# Check if no firewall solution is installed
+if [[ -z "$detect_firewall_install_ufw" &&
+      -z "$detect_firewall_install_firewalld" &&
+      -z "$detect_firewall_install_nftables" &&
+      -z "$detect_firewall_install_iptables" ]]; then
+    echo "CRITICAL: No firewall solution installed"
+
+# Check if firewalls are installed but none are active
+elif [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == "inactive" ) &&
+        ( -n "$detect_firewall_install_firewalld" && "$detect_firewall_status_firewalld" == "inactive" ) &&
+        ( -n "$detect_firewall_install_nftables" && "$detect_firewall_status_nftables" == "inactive" ) &&
+        ( -n "$detect_firewall_install_iptables" && "$detect_firewall_status_iptables" == "inactive" ) ]]; then
+    echo "CRITICAL: No active firewall detected"
+fi
 }
 
+
+generate_report() {
+    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status
+    user=$(whoami)
+    hostname=$(hostname)
+    result_check_uid_zero_users=$(check_uid_zero_users)
+    result_check_world_writable_files=$(check_world_writable_files)
+    result_check_ssh_configuration=$(check_ssh_configuration)
+    result_check_open_ports=$(check_open_ports)
+    result_check_firewall_status=$(check_firewall_status)
+
+    echo "Report generated on: $report_date"
+    echo "User: $user"
+    echo "Hostname: $hostname"
+    echo "$result_check_uid_zero_users"
+    echo "$result_check_world_writable_files"
+    echo "$result_check_ssh_configuration"
+    echo "$result_check_open_ports"
+    echo "$result_check_firewall_status"
+}
+
+generate_report_file() {
+    local result_final report_date
+    
+    report_date=$(date "+%Y-%m-%d_%H-%M-%S") 
+    result_final=$(generate_report)
+    
+    mkdir -p ./reports
+    chmod 700 ./reports
+    echo "$result_final" > ./reports/"result_$report_date.txt"
+    chmod 600 "./reports/result_$report_date.txt"
+    sha256sum "./reports/result_$report_date.txt" > ./reports/"hash_result_$report_date.txt"
+}
+
+echo "--- Generated content ---"
+echo "" 
+
 #Call functions
-#You can put a # before the name of each function to disable them          
+          
 check_root
-check_uid_zero_users
-check_world_writable_files
-check_ssh_configuration
-check_open_ports
-check_firewall_status
+generate_report_file
