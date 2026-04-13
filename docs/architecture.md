@@ -11,6 +11,7 @@ audit.sh          # Main script
 ├── check_ssh_configuration()       # Audit SSH settings
 ├── check_open_ports()              # List listening ports
 ├── check_firewall_status()         # Check firewall state
+├── check_firewall_status()         # check_suid_sgid_binaries
 └── generate_report_file()          # Create timestamped report
 
 ## Output
