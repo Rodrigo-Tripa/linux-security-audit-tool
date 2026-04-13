@@ -168,10 +168,12 @@ check_open_ports() {
     echo "----- OPEN PORTS -----"
     echo ""
 
-    local active_ports active_ports_srisk active_ports_risk
-    active_ports=$(ss -tulpn | awk 'NR==1 {printf "%-6s %-25s %-20s\n", $1, $5, $6; next}
+    local ss_output active_ports active_ports_srisk active_ports_risk
+    ss_output=$(ss -tulpn 2>/dev/null || ss -tuln)
+    
+    active_ports=$(echo "$ss_output" | awk 'NR==1 {printf "%-6s %-25s %-20s\n", $1, $5, $6; next}
                 {printf "%-6s %-25s %-20s\n", $1, $5, $6}')
-    active_ports_srisk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(22|3389|445|139|21|23|5900|3306|5432|6379|27017|11211)$')
+    active_ports_srisk=$(echo "$ss_output" | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(22|3389|445|139|21|23|5900|3306|5432|6379|27017|11211)$' || true)
     active_ports_risk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(25|53|8080)$')
     if command -v ss >/dev/null 2>&1; then
         echo "INFO: ss command installed"
@@ -283,8 +285,114 @@ fi
 }
 
 
+check_suid_sgid_binaries() {
+
+    echo ""
+    echo "----- SUID/SGID BINARIES -----"
+    echo ""
+
+    # Verify if 'find' command is available
+    if ! command -v find >/dev/null 2>&1; then
+        echo "ERROR: 'find' command is not installed."
+        return
+    fi
+
+    echo "INFO: Searching for SUID and SGID binaries. This may take a while..."
+
+    # Whitelist of common legitimate binaries
+    local whitelist=(
+        "/usr/bin/passwd"
+        "/usr/bin/sudo"
+        "/usr/bin/chsh"
+        "/usr/bin/newgrp"
+        "/usr/bin/gpasswd"
+        "/usr/bin/mount"
+        "/usr/bin/umount"
+        "/usr/bin/su"
+        "/usr/bin/pkexec"
+        "/usr/bin/crontab"
+    )
+
+    # Locate SUID/SGID binaries while excluding pseudo-filesystems
+    local suid_sgid_files
+    suid_sgid_files=$(find / \
+        \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /snap \) -prune -o \
+        -type f -perm /6000 -print 2>/dev/null)
+
+    if [[ -z "$suid_sgid_files" ]]; then
+        echo "OK: No SUID/SGID binaries found."
+        return
+    fi
+
+    echo "INFO: SUID/SGID binaries detected:"
+    printf "%-50s %-10s %-10s %-12s\n" "PATH" "TYPE" "OWNER" "STATUS"
+
+    local total_suid=0
+    local total_sgid=0
+    local suspicious=0
+
+    # Function to check if a binary is whitelisted
+    is_whitelisted() {
+        local file="$1"
+        for item in "${whitelist[@]}"; do
+            [[ "$file" == "$item" ]] && return 0
+        done
+        return 1
+    }
+
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+
+        local perms owner type status
+        perms=$(stat -c "%a" "$file" 2>/dev/null)
+        owner=$(stat -c "%U" "$file" 2>/dev/null)
+        type=""
+
+        # Determine SUID/SGID type using octal permissions
+        if (( perms & 4000 )); then
+            type="SUID"
+            ((total_suid++))
+        fi
+
+        if (( perms & 2000 )); then
+            [[ -n "$type" ]] && type="$type/SGID" || type="SGID"
+            ((total_sgid++))
+        fi
+
+        # Determine status based on whitelist and ownership
+        if is_whitelisted "$file" && [[ "$owner" == "root" ]]; then
+            status="OK"
+        else
+            status="WARNING"
+            ((suspicious++))
+        fi
+
+        # Additional risk indicator: binaries in temporary directories
+        if [[ "$file" =~ ^/(tmp|var/tmp)/ ]]; then
+            status="WARNING"
+            ((suspicious++))
+        fi
+
+        printf "%-50s %-10s %-10s %-12s\n" "$file" "$type" "$owner" "$status"
+
+    done <<< "$suid_sgid_files"
+
+    echo ""
+    echo "Summary:"
+    echo "INFO: Total SUID binaries : $total_suid"
+    echo "INFO: Total SGID binaries : $total_sgid"
+
+    if [[ "$suspicious" -eq 0 ]]; then
+        echo "OK: No suspicious SUID/SGID binaries detected."
+    else
+        echo "WARNING: Suspicious SUID/SGID binaries detected: $suspicious"
+    fi
+}
+
+
 generate_report() {
-    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status
+    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status result_check_suid_sgid_binaries
+    report_date=$(date "+%Y-%m-%d %H:%M:%S")
     user=$(whoami)
     hostname=$(hostname)
     result_check_uid_zero_users=$(check_uid_zero_users)
@@ -292,6 +400,7 @@ generate_report() {
     result_check_ssh_configuration=$(check_ssh_configuration)
     result_check_open_ports=$(check_open_ports)
     result_check_firewall_status=$(check_firewall_status)
+    result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
 
     echo "Report generated on: $report_date"
     echo "User: $user"
@@ -301,6 +410,7 @@ generate_report() {
     echo "$result_check_ssh_configuration"
     echo "$result_check_open_ports"
     echo "$result_check_firewall_status"
+    echo "$result_check_suid_sgid_binaries"
 }
 
 generate_report_file() {
@@ -315,6 +425,8 @@ generate_report_file() {
     chmod 600 "./reports/result_$report_date.txt"
     sha256sum "./reports/result_$report_date.txt" > ./reports/"hash_result_$report_date.txt"
 }
+
+
 
 echo "--- Generated content ---"
 echo "" 
