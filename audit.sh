@@ -16,7 +16,7 @@
 
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo "INFO: This script must be used with root privileges."
+        echo -e "\e[36mINFO:\e[0m This script must be used with root privileges."
         exit 1
     fi
 }
@@ -26,14 +26,14 @@ check_root() {
 check_uid_zero_users() {
 
     echo ""
-    echo "----- UID ZERO USERS -----"
+    echo -e "\e[1m----- UID ZERO USERS -----\e[0m"
     echo ""
 
     uid_zero_users=$(awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/')
     if [[ -n "$uid_zero_users" ]]; then
-        echo "WARNING: The following users with sensitive permissions have been detected: $uid_zero_users"
+        echo -e "\e[33mWARNING:\e[0m The following users with sensitive permissions have been detected: $uid_zero_users"
     else
-        echo "OK: No users with sensitive permissions other than root were detected"
+        echo -e "\e[32mOK:\e[0m No users with sensitive permissions other than root were detected"
     fi
 }
 
@@ -42,7 +42,7 @@ check_uid_zero_users() {
 check_world_writable_files() {
 
     echo ""
-    echo "----- WORLD WRITABLE FILES -----"
+    echo -e "\e[1m----- WORLD WRITABLE FILES -----\e[0m"
     echo ""
 
     world_writable_files=$(find / -xdev \
@@ -50,10 +50,10 @@ check_world_writable_files() {
       -o -type f -perm -0002 -print 2>/dev/null)
 
     if [[ -n "$world_writable_files" ]]; then
-        echo "WARNING: The following files have permissions that may lead to privilege escalation:
+        echo -e "\e[33mWARNING:\e[0m The following files have permissions that may lead to privilege escalation:
         $world_writable_files"
     else
-        echo "OK: No Sensitive Files Detected"
+        echo -e "\e[32mOK:\e[0m No Sensitive Files Detected"
     fi
 }
 
@@ -62,16 +62,16 @@ check_world_writable_files() {
 check_ssh_configuration() {       
                           # Note: This function required significant effort due to the complexity of SSH configuration parsing.
     echo ""                     
-    echo "----- SSH CONFIGURATION -----"
+    echo -e "\e[1m----- SSH CONFIGURATION -----\e[0m"
     echo ""
 
 #Check if the SSH daemon (sshd) is installed
     if ! command -v sshd >/dev/null 2>&1; then
-        echo "INFO: OpenSSH server (sshd) is not installed."
+        echo -e "\e[36mINFO:\e[0m OpenSSH server (sshd) is not installed."
         return
     fi
 
-    echo "INFO: OpenSSH server detected."
+    echo -e "\e[36mINFO:\e[0m OpenSSH server detected."
 
 # Determine the service name (ssh or sshd)    
     local ssh_service=""
@@ -80,7 +80,7 @@ check_ssh_configuration() {
     elif systemctl show -p LoadState --value sshd 2>/dev/null | grep -qv "not-found"; then
         ssh_service="sshd"
     else
-        echo "WARNING: SSH service unit not found."
+        echo -e "\e[33mWARNING:\e[0m SSH service unit not found."
         # Even if the service is not found, we continue the configuration
         # audit, as it may exist independently of the service state
     fi
@@ -92,22 +92,22 @@ check_ssh_configuration() {
 
         case "$ssh_status" in
             active)
-                echo "INFO: SSH service ($ssh_service) is active."
+                echo -e "\e[36mINFO:\e[0m SSH service ($ssh_service) is active."
                 ;;
             inactive)
-                echo "WARNING: SSH service ($ssh_service) is installed but inactive."
+                echo -e "\e[33mWARNING:\e[0m SSH service ($ssh_service) is installed but inactive."
                 ;;
             failed)
-                echo "WARNING: SSH service ($ssh_service) is in a failed state."
+                echo -e "\e[33mWARNING:\e[0m SSH service ($ssh_service) is in a failed state."
                 ;;
             activating)
-                echo "INFO: SSH service ($ssh_service) is activating."
+                echo -e "\e[36mINFO:\e[0m SSH service ($ssh_service) is activating."
                 ;;
             deactivating)
-                echo "INFO: SSH service ($ssh_service) is deactivating."
+                echo -e "\e[36mINFO:\e[0m SSH service ($ssh_service) is deactivating."
                 ;;
             *)
-                echo "WARNING: Unable to determine SSH service state."
+                echo -e "\e[33mWARNING:\e[0m Unable to determine SSH service state."
                 ;;
         esac
     fi
@@ -115,7 +115,7 @@ check_ssh_configuration() {
 #Get the effective SSH configuration
     local ssh_config
     if ! ssh_config=$(sshd -T 2>/dev/null); then
-        echo "WARNING: Unable to retrieve SSH configuration using 'sshd -T'."
+        echo -e "\e[33mWARNING:\e[0m Unable to retrieve SSH configuration using 'sshd -T'."
         return
     fi
 
@@ -131,30 +131,30 @@ check_ssh_configuration() {
 
     # PermitRootLogin
     if [[ "$permit_root_login" == "no" || "$permit_root_login" == "prohibit-password" ]]; then
-        echo "OK: PermitRootLogin is securely configured ($permit_root_login)."
+        echo -e "\e[32mOK:\e[0m PermitRootLogin is securely configured ($permit_root_login)."
     else
-        echo "WARNING: PermitRootLogin is insecurely configured ($permit_root_login)."
+        echo -e "\e[33mWARNING:\e[0m PermitRootLogin is insecurely configured ($permit_root_login)."
     fi
 
     # PasswordAuthentication
     if [[ "$password_auth" == "no" ]]; then
-        echo "OK: PasswordAuthentication is disabled."
+        echo -e "\e[32mOK:\e[0m PasswordAuthentication is disabled."
     else
-        echo "WARNING: PasswordAuthentication is enabled."
+        echo -e "\e[33mWARNING:\e[0m PasswordAuthentication is enabled."
     fi
 
     # MaxAuthTries
     if [[ "$max_auth_tries" =~ ^[0-9]+$ && "$max_auth_tries" -le 4 ]]; then
-        echo "OK: MaxAuthTries is securely configured ($max_auth_tries)."
+        echo -e "\e[32mOK:\e[0m MaxAuthTries is securely configured ($max_auth_tries)."
     else
-        echo "WARNING: MaxAuthTries is higher than recommended ($max_auth_tries)."
+        echo -e "\e[33mWARNING:\e[0m MaxAuthTries is higher than recommended ($max_auth_tries)."
     fi
 
     # X11Forwarding
     if [[ "$x11_forwarding" == "no" ]]; then
-        echo "OK: X11Forwarding is disabled."
+        echo -e "\e[32mOK:\e[0m X11Forwarding is disabled."
     else
-        echo "WARNING: X11Forwarding is enabled."
+        echo -e "\e[33mWARNING:\e[0m X11Forwarding is enabled."
     fi
 }
 
@@ -165,7 +165,7 @@ check_ssh_configuration() {
 check_open_ports() {
     
     echo ""
-    echo "----- OPEN PORTS -----"
+    echo -e "\e[1m----- OPEN PORTS -----\e[0m"
     echo ""
 
     local ss_output active_ports active_ports_srisk active_ports_risk
@@ -176,29 +176,29 @@ check_open_ports() {
     active_ports_srisk=$(echo "$ss_output" | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(22|3389|445|139|21|23|5900|3306|5432|6379|27017|11211)$' || true)
     active_ports_risk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(25|53|8080)$')
     if command -v ss >/dev/null 2>&1; then
-        echo "INFO: ss command installed"
+        echo -e "\e[36mINFO:\e[0m ss command installed"
         if [[ -n "$active_ports" ]]; then
-            echo "INFO: Active Ports:"
+            echo -e "\e[36mINFO:\e[0m Active Ports:"
             echo "$active_ports"
             echo ""
             if [[ -n "$active_ports_srisk" ]]; then
-                echo "WARNING: High Risk Open Ports:"
+                echo -e "\e[33mWARNING:\e[0m High Risk Open Ports:"
                 echo "$active_ports_srisk"
                 echo ""
             else
-                echo "OK: No High-Risk Ports detected"
+                echo -e "\e[32mOK:\e[0m No High-Risk Ports detected"
             fi
             if [[ -n "$active_ports_risk" ]]; then
-                echo "INFO: Medium Risk Open Ports:"
+                echo -e "\e[36mINFO:\e[0m Medium Risk Open Ports:"
                 echo "$active_ports_risk"
             else 
-                echo "OK: No Medium-Risk Ports Detected"
+                echo -e "\e[32mOK:\e[0m No Medium-Risk Ports Detected"
             fi
          else
-            echo "INFO: No Active Ports Detected"
+            echo -e "\e[36mINFO:\e[0m No Active Ports Detected"
         fi
     else
-        echo "ERROR: ss command NOT installed"
+        echo -e "\e[31mERROR:\e[0m ss command NOT installed"
     fi
 }
 
@@ -206,7 +206,7 @@ check_open_ports() {
 check_firewall_status() {
 
     echo ""
-    echo "----- FIREWALL -----"
+    echo -e "\e[1m----- FIREWALL -----\e[0m"
     echo ""
 
     local detect_firewall_install_ufw detect_firewall_status_ufw
@@ -228,41 +228,41 @@ check_firewall_status() {
 
     # UFW
     if [[ -n "$detect_firewall_install_ufw" ]]; then
-        echo "INFO: Firewall 'ufw' installed"
+        echo -e "\e[36mINFO:\e[0m Firewall 'ufw' installed"
         if [[ "$detect_firewall_status_ufw" == "active" ]]; then
-            echo "OK: Firewall 'ufw' is active"
+            echo -e "\e[32mOK:\e[0m Firewall 'ufw' is active"
         else
-            echo "WARNING: Firewall 'ufw' is inactive"
+            echo -e "\e[33mWARNING:\e[0m Firewall 'ufw' is inactive"
         fi
     fi
 
     # firewalld
     if [[ -n "$detect_firewall_install_firewalld" ]]; then
-        echo "INFO: Firewall 'firewalld' installed"
+        echo -e "\e[36mINFO:\e[0m Firewall 'firewalld' installed"
         if [[ "$detect_firewall_status_firewalld" == "active" ]]; then
-            echo "OK: Firewall 'firewalld' is active"
+            echo -e "\e[32mOK:\e[0m Firewall 'firewalld' is active"
         else
-            echo "WARNING: Firewall 'firewalld' is inactive"
+            echo -e "\e[33mWARNING:\e[0m Firewall 'firewalld' is inactive"
         fi
     fi
 
     # nftables
     if [[ -n "$detect_firewall_install_nftables" ]]; then
-        echo "INFO: Firewall 'nftables' installed"
+        echo -e "\e[36mINFO:\e[0m Firewall 'nftables' installed"
         if [[ "$detect_firewall_status_nftables" == "active" ]]; then
-            echo "OK: Firewall 'nftables' is active"
+            echo -e "\e[32mOK:\e[0m Firewall 'nftables' is active"
         else
-            echo "WARNING: Firewall 'nftables' is inactive"
+            echo -e "\e[33mWARNING:\e[0m Firewall 'nftables' is inactive"
         fi
     fi
 
     # iptables
     if [[ -n "$detect_firewall_install_iptables" ]]; then
-        echo "INFO: Firewall 'iptables' installed"
+        echo -e "\e[36mINFO:\e[0m Firewall 'iptables' installed"
         if [[ "$detect_firewall_status_iptables" == "active" ]]; then
-            echo "OK: Firewall 'iptables' is active"
+            echo -e "\e[32mOK:\e[0m Firewall 'iptables' is active"
         else
-            echo "WARNING: Firewall 'iptables' is inactive"
+            echo -e "\e[33mWARNING:\e[0m Firewall 'iptables' is inactive"
         fi
     fi
 
@@ -273,14 +273,14 @@ if [[ -z "$detect_firewall_install_ufw" &&
       -z "$detect_firewall_install_firewalld" &&
       -z "$detect_firewall_install_nftables" &&
       -z "$detect_firewall_install_iptables" ]]; then
-    echo "CRITICAL: No firewall solution installed"
+    echo -e "\e[31mCRITICAL:\e[0m No firewall solution installed"
 
 # Check if firewalls are installed but none are active
 elif [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == "inactive" ) &&
         ( -n "$detect_firewall_install_firewalld" && "$detect_firewall_status_firewalld" == "inactive" ) &&
         ( -n "$detect_firewall_install_nftables" && "$detect_firewall_status_nftables" == "inactive" ) &&
         ( -n "$detect_firewall_install_iptables" && "$detect_firewall_status_iptables" == "inactive" ) ]]; then
-    echo "CRITICAL: No active firewall detected"
+    echo -e "\e[31mCRITICAL:\e[0m No active firewall detected"
 fi
 }
 
@@ -288,16 +288,16 @@ fi
 check_suid_sgid_binaries() {
 
     echo ""
-    echo "----- SUID/SGID BINARIES -----"
+    echo -e "\e[1m----- SUID/SGID BINARIES -----\e[0m"
     echo ""
 
     # Verify if 'find' command is available
     if ! command -v find >/dev/null 2>&1; then
-        echo "ERROR: 'find' command is not installed."
+        echo -e "\e[31mERROR:\e[0m 'find' command is not installed."
         return
     fi
 
-    echo "INFO: Searching for SUID and SGID binaries. This may take a while..."
+    echo -e "\e[36mINFO:\e[0m Searching for SUID and SGID binaries. This may take a while..."
 
     # Whitelist of common legitimate binaries
     local whitelist=(
@@ -320,11 +320,11 @@ check_suid_sgid_binaries() {
         -type f -perm /6000 -print 2>/dev/null)
 
     if [[ -z "$suid_sgid_files" ]]; then
-        echo "OK: No SUID/SGID binaries found."
+        echo -e "\e[32mOK:\e[0m No SUID/SGID binaries found."
         return
     fi
 
-    echo "INFO: SUID/SGID binaries detected:"
+    echo -e "\e[36mINFO:\e[0m SUID/SGID binaries detected:"
     printf "%-50s %-10s %-10s %-12s\n" "PATH" "TYPE" "OWNER" "STATUS"
 
     local total_suid=0
@@ -361,37 +361,37 @@ check_suid_sgid_binaries() {
 
         # Determine status based on whitelist and ownership
         if is_whitelisted "$file" && [[ "$owner" == "root" ]]; then
-            status="OK"
+            status="\e[32mOK\e[0m"
         else
-            status="WARNING"
+            status="\e[33mWARNING\e[0m"
             ((suspicious++))
         fi
 
         # Additional risk indicator: binaries in temporary directories
         if [[ "$file" =~ ^/(tmp|var/tmp)/ ]]; then
-            status="WARNING"
+            status="\e[33mWARNING\e[0m"
             ((suspicious++))
         fi
 
-        printf "%-50s %-10s %-10s %-12s\n" "$file" "$type" "$owner" "$status"
+        printf "%-50s %-10s %-10s %-12b\n" "$file" "$type" "$owner" "$status"
 
     done <<< "$suid_sgid_files"
 
     echo ""
     echo "Summary:"
-    echo "INFO: Total SUID binaries : $total_suid"
-    echo "INFO: Total SGID binaries : $total_sgid"
+    echo -e "\e[36mINFO:\e[0m Total SUID binaries : $total_suid"
+    echo -e "\e[36mINFO:\e[0m Total SGID binaries : $total_sgid"
 
     if [[ "$suspicious" -eq 0 ]]; then
-        echo "OK: No suspicious SUID/SGID binaries detected."
+        echo -e "\e[32mOK:\e[0m No suspicious SUID/SGID binaries detected."
     else
-        echo "WARNING: Suspicious SUID/SGID binaries detected: $suspicious"
+        echo -e "\e[33mWARNING:\e[0m Suspicious SUID/SGID binaries detected: $suspicious"
     fi
 }
 
 
 generate_report() {
-    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status result_check_suid_sgid_binaries
+    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status # result_check_suid_sgid_binaries
     report_date=$(date "+%Y-%m-%d %H:%M:%S")
     user=$(whoami)
     hostname=$(hostname)
@@ -400,17 +400,17 @@ generate_report() {
     result_check_ssh_configuration=$(check_ssh_configuration)
     result_check_open_ports=$(check_open_ports)
     result_check_firewall_status=$(check_firewall_status)
-    result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
+    # result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
 
     echo "Report generated on: $report_date"
-    echo "User: $user"
+    echo -e "\e[31mUser: $user\e[0m"
     echo "Hostname: $hostname"
     echo "$result_check_uid_zero_users"
     echo "$result_check_world_writable_files"
     echo "$result_check_ssh_configuration"
     echo "$result_check_open_ports"
     echo "$result_check_firewall_status"
-    echo "$result_check_suid_sgid_binaries"
+    # echo "$result_check_suid_sgid_binaries"
 }
 
 generate_report_file() {
@@ -418,6 +418,9 @@ generate_report_file() {
     
     report_date=$(date "+%Y-%m-%d_%H-%M-%S") 
     result_final=$(generate_report)
+    
+    # Remove  ANSI
+    result_final=$(echo "$result_final" | sed 's/\x1b\[[0-9;]*m//g')
     
     mkdir -p ./reports
     chmod 700 ./reports
@@ -435,3 +438,7 @@ echo ""
           
 check_root
 generate_report_file
+
+if [[ $1 == "-v" ]]; then
+    generate_report
+fi
