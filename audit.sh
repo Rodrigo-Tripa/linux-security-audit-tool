@@ -391,7 +391,7 @@ check_suid_sgid_binaries() {
 
 
 generate_report() {
-    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status # result_check_suid_sgid_binaries
+    local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status result_check_suid_sgid_binaries
     report_date=$(date "+%Y-%m-%d %H:%M:%S")
     user=$(whoami)
     hostname=$(hostname)
@@ -400,7 +400,7 @@ generate_report() {
     result_check_ssh_configuration=$(check_ssh_configuration)
     result_check_open_ports=$(check_open_ports)
     result_check_firewall_status=$(check_firewall_status)
-    # result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
+    result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
 
     echo "Report generated on: $report_date"
     echo -e "\e[31mUser: $user\e[0m"
@@ -410,7 +410,7 @@ generate_report() {
     echo "$result_check_ssh_configuration"
     echo "$result_check_open_ports"
     echo "$result_check_firewall_status"
-    # echo "$result_check_suid_sgid_binaries"
+    echo "$result_check_suid_sgid_binaries"
 }
 
 generate_report_file() {
