@@ -1,0 +1,73 @@
+Report generated on: 2026-04-13 19:01:35
+User: root
+Hostname: Desktop-Moth
+
+----- UID ZERO USERS -----
+
+OK: No users with sensitive permissions other than root were detected
+
+----- WORLD WRITABLE FILES -----
+
+OK: No Sensitive Files Detected
+
+----- SSH CONFIGURATION -----
+
+INFO: OpenSSH server detected.
+INFO: SSH service (ssh) is active.
+OK: PermitRootLogin is securely configured (prohibit-password).
+WARNING: PasswordAuthentication is enabled.
+WARNING: MaxAuthTries is higher than recommended (6).
+WARNING: X11Forwarding is enabled.
+
+----- OPEN PORTS -----
+
+INFO: ss command installed
+INFO: Active Ports:
+Netid  Local                     Address:Port        
+udp    10.255.255.254:53         0.0.0.0:*           
+udp    127.0.0.1:323             0.0.0.0:*           
+udp    [::1]:323                 [::]:*              
+tcp    0.0.0.0:22                0.0.0.0:*           
+tcp    127.0.0.1:44545           0.0.0.0:*           
+tcp    127.0.0.1:40563           0.0.0.0:*           
+tcp    10.255.255.254:53         0.0.0.0:*           
+tcp    [::]:22                   [::]:*              
+
+WARNING: High Risk Open Ports:
+22
+
+INFO: Medium Risk Open Ports:
+53
+
+----- FIREWALL -----
+
+INFO: Firewall 'nftables' installed
+OK: Firewall 'nftables' is active
+
+----- SUID/SGID BINARIES -----
+
+INFO: Searching for SUID and SGID binaries. This may take a while...
+INFO: SUID/SGID binaries detected:
+PATH                                               TYPE       OWNER      STATUS      
+/usr/sbin/mount.nfs                                SUID/SGID  root       WARNING     
+/usr/sbin/unix_chkpwd                              SUID/SGID  root       WARNING     
+/usr/bin/chage                                     SUID/SGID  root       WARNING     
+/usr/bin/chfn                                      SUID/SGID  root       WARNING     
+/usr/bin/umount                                    SUID/SGID  root       OK          
+/usr/bin/mount                                     SUID/SGID  root       OK          
+/usr/bin/plocate                                   SUID/SGID  root       WARNING     
+/usr/bin/passwd                                    SUID/SGID  root       OK          
+/usr/bin/chsh                                      SUID/SGID  root       OK          
+/usr/bin/sudo                                      SUID/SGID  root       OK          
+/usr/bin/expiry                                    SUID/SGID  root       WARNING     
+/usr/bin/ssh-agent                                 SUID/SGID  root       WARNING     
+/usr/bin/gpasswd                                   SUID/SGID  root       OK          
+/usr/bin/su                                        SUID/SGID  root       OK          
+/usr/bin/crontab                                   SUID/SGID  root       OK          
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper        SUID/SGID  root       WARNING     
+/usr/lib/openssh/ssh-keysign                       SUID/SGID  root       WARNING     
+
+Summary:
+INFO: Total SUID binaries : 17
+INFO: Total SGID binaries : 17
+WARNING: Suspicious SUID/SGID binaries detected: 9
