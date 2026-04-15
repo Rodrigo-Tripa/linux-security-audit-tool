@@ -21,19 +21,36 @@ check_root() {
     fi
 }
 
-#Check if there are users with UID = 0
-
+# Check if there are users with UID = 0 (root privileges)
 check_uid_zero_users() {
-
     echo ""
     echo -e "\e[1m----- UID ZERO USERS -----\e[0m"
     echo ""
-
-    uid_zero_users=$(awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/')
+    
+    # Search for users with UID 0 except root in a single command
+    local uid_zero_users
+    uid_zero_users=$(awk -F: '$3 == 0 && $1 != "root" { print $1 }' /etc/passwd)
+    
     if [[ -n "$uid_zero_users" ]]; then
-        echo -e "\e[33mWARNING:\e[0m The following users with sensitive permissions have been detected: $uid_zero_users"
+        # Count how many non-root users have UID 0
+        local user_count=$(echo "$uid_zero_users" | wc -l)
+        echo -e "\e[33m[WARNING]\e[0m Detected $user_count non-root user(s) with UID 0 (root privileges):"
+        echo ""
+        
+        # List users with improved formatting and additional details
+        while IFS= read -r user; do
+            # Extract user information from /etc/passwd
+            local user_info=$(grep "^${user}:" /etc/passwd | cut -d: -f1,5,6,7)
+            echo -e "  \e[31m●\e[0m User: \e[1m$user\e[0m"
+            echo "    Info: $(echo "$user_info" | cut -d: -f2)"
+            echo "    Home: $(echo "$user_info" | cut -d: -f3)"
+            echo "    Shell: $(echo "$user_info" | cut -d: -f4)"
+            echo ""
+        done <<< "$uid_zero_users"
+        
+        echo -e "\e[33m[!]\e[0m This is a critical security risk! Only 'root' should have UID 0."
     else
-        echo -e "\e[32mOK:\e[0m No users with sensitive permissions other than root were detected"
+        echo -e "\e[32m[OK]\e[0m No non-root users with UID 0 detected"
     fi
 }
 
