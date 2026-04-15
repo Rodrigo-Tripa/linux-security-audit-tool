@@ -48,7 +48,7 @@ check_uid_zero_users() {
             echo ""
         done <<< "$uid_zero_users"
         
-        echo -e "\e[33m[!]\e[0m This is a critical security risk! Only 'root' should have UID 0."
+        echo -e "\e[33m[CRITICAL]\e[0m This is a critical security risk! Only 'root' should have UID 0."
     else
         echo -e "\e[32m[OK]\e[0m No non-root users with UID 0 detected"
     fi
