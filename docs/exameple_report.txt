@@ -1,6 +1,7 @@
-Report generated on: 2026-04-13 19:01:35
+Report generated on: 2026-04-16 22:35:35
 User: root
 Hostname: Desktop-Moth
+Operative System Family: debian
 
 ----- UID ZERO USERS -----
 
@@ -8,7 +9,8 @@ OK: No users with sensitive permissions other than root were detected
 
 ----- WORLD WRITABLE FILES -----
 
-OK: No Sensitive Files Detected
+WARNING: The following files have permissions that may lead to privilege escalation:
+        /home/semideus/projects/linux-security-audit/docs/exameple_report.txt
 
 ----- SSH CONFIGURATION -----
 
@@ -27,9 +29,9 @@ Netid  Local                     Address:Port
 udp    10.255.255.254:53         0.0.0.0:*           
 udp    127.0.0.1:323             0.0.0.0:*           
 udp    [::1]:323                 [::]:*              
+tcp    127.0.0.1:34947           0.0.0.0:*           
+tcp    127.0.0.1:39151           0.0.0.0:*           
 tcp    0.0.0.0:22                0.0.0.0:*           
-tcp    127.0.0.1:44545           0.0.0.0:*           
-tcp    127.0.0.1:40563           0.0.0.0:*           
 tcp    10.255.255.254:53         0.0.0.0:*           
 tcp    [::]:22                   [::]:*              
 
@@ -49,25 +51,30 @@ OK: Firewall 'nftables' is active
 INFO: Searching for SUID and SGID binaries. This may take a while...
 INFO: SUID/SGID binaries detected:
 PATH                                               TYPE       OWNER      STATUS      
-/usr/sbin/mount.nfs                                SUID/SGID  root       WARNING     
-/usr/sbin/unix_chkpwd                              SUID/SGID  root       WARNING     
-/usr/bin/chage                                     SUID/SGID  root       WARNING     
-/usr/bin/chfn                                      SUID/SGID  root       WARNING     
-/usr/bin/umount                                    SUID/SGID  root       OK          
-/usr/bin/mount                                     SUID/SGID  root       OK          
-/usr/bin/plocate                                   SUID/SGID  root       WARNING     
-/usr/bin/passwd                                    SUID/SGID  root       OK          
-/usr/bin/chsh                                      SUID/SGID  root       OK          
-/usr/bin/sudo                                      SUID/SGID  root       OK          
-/usr/bin/expiry                                    SUID/SGID  root       WARNING     
-/usr/bin/ssh-agent                                 SUID/SGID  root       WARNING     
-/usr/bin/gpasswd                                   SUID/SGID  root       OK          
-/usr/bin/su                                        SUID/SGID  root       OK          
-/usr/bin/crontab                                   SUID/SGID  root       OK          
-/usr/lib/dbus-1.0/dbus-daemon-launch-helper        SUID/SGID  root       WARNING     
-/usr/lib/openssh/ssh-keysign                       SUID/SGID  root       WARNING     
+/usr/sbin/mount.nfs                                SUID/SGID  root       WARNING
+/usr/sbin/unix_chkpwd                              SUID/SGID  root       WARNING
+/usr/bin/chage                                     SUID/SGID  root       WARNING
+/usr/bin/chfn                                      SUID/SGID  root       WARNING
+/usr/bin/umount                                    SUID/SGID  root       OK 
+/usr/bin/mount                                     SUID/SGID  root       OK 
+/usr/bin/plocate                                   SUID/SGID  root       WARNING
+/usr/bin/passwd                                    SUID/SGID  root       OK 
+/usr/bin/chsh                                      SUID/SGID  root       OK 
+/usr/bin/sudo                                      SUID/SGID  root       OK 
+/usr/bin/expiry                                    SUID/SGID  root       WARNING
+/usr/bin/ssh-agent                                 SUID/SGID  root       WARNING
+/usr/bin/gpasswd                                   SUID/SGID  root       OK 
+/usr/bin/su                                        SUID/SGID  root       OK 
+/usr/bin/crontab                                   SUID/SGID  root       OK 
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper        SUID/SGID  root       WARNING
+/usr/lib/openssh/ssh-keysign                       SUID/SGID  root       WARNING
 
 Summary:
 INFO: Total SUID binaries : 17
 INFO: Total SGID binaries : 17
 WARNING: Suspicious SUID/SGID binaries detected: 9
+
+----- SECURITY UPDATES -----
+
+INFO: Debian-based system detected.
+All packages are up to date.
