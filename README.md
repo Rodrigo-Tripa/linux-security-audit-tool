@@ -248,3 +248,4 @@ sudo ./audit.sh -v
 * `apt update` may generate noise depending on repo state
 * Firewall detection assumes systemd-based systems
 * Port risk classification is static (can be improved)
+* Using the -v argument for verbose mode might generate output errors if "SUID/SGID BIRNARIES" is enabled
