@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.3 (Alpha)
+# Version: 0.2 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -21,36 +21,19 @@ check_root() {
     fi
 }
 
-# Check if there are users with UID = 0 (root privileges)
+#Check if there are users with UID = 0
+
 check_uid_zero_users() {
+
     echo ""
     echo -e "\e[1m----- UID ZERO USERS -----\e[0m"
     echo ""
-    
-    # Search for users with UID 0 except root in a single command
-    local uid_zero_users
-    uid_zero_users=$(awk -F: '$3 == 0 && $1 != "root" { print $1 }' /etc/passwd)
-    
+
+    uid_zero_users=$(awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/')
     if [[ -n "$uid_zero_users" ]]; then
-        # Count how many non-root users have UID 0
-        local user_count=$(echo "$uid_zero_users" | wc -l)
-        echo -e "\e[33m[WARNING]\e[0m Detected $user_count non-root user(s) with UID 0 (root privileges):"
-        echo ""
-        
-        # List users with improved formatting and additional details
-        while IFS= read -r user; do
-            # Extract user information from /etc/passwd
-            local user_info=$(grep "^${user}:" /etc/passwd | cut -d: -f1,5,6,7)
-            echo -e "  \e[31m●\e[0m User: \e[1m$user\e[0m"
-            echo "    Info: $(echo "$user_info" | cut -d: -f2)"
-            echo "    Home: $(echo "$user_info" | cut -d: -f3)"
-            echo "    Shell: $(echo "$user_info" | cut -d: -f4)"
-            echo ""
-        done <<< "$uid_zero_users"
-        
-        echo -e "\e[33m[CRITICAL]\e[0m This is a critical security risk! Only 'root' should have UID 0."
+        echo -e "\e[33mWARNING:\e[0m The following users with sensitive permissions have been detected: $uid_zero_users"
     else
-        echo -e "\e[32m[OK]\e[0m No non-root users with UID 0 detected"
+        echo -e "\e[32mOK:\e[0m No users with sensitive permissions other than root were detected"
     fi
 }
 
@@ -407,6 +390,78 @@ check_suid_sgid_binaries() {
 }
 
 
+detect_os() {
+    if [[ -r /etc/os-release ]]; then
+        . /etc/os-release
+    else
+        echo "[ERROR] Unable to read /etc/os-release"
+        return 1
+    fi
+
+    local os_id os_like
+    os_id=$(echo "$ID" | tr '[:upper:]' '[:lower:]')
+    os_like=$(echo "$ID_LIKE" | tr '[:upper:]' '[:lower:]')
+
+    if [[ "$os_id" =~ (debian|ubuntu) || "$os_like" =~ debian ]]; then
+        OS_FAMILY="debian"
+
+    elif [[ "$os_id" =~ (rhel|centos|rocky|almalinux|fedora) || "$os_like" =~ rhel ]]; then
+        OS_FAMILY="rhel"
+
+    else
+        OS_FAMILY="unknown"
+    fi
+}
+
+
+check_security_updates() {
+    local PACKAGE_MANAGER UPDATE
+    echo ""
+    echo "----- SECURITY UPDATES -----"
+    echo ""
+
+    # Validate OS_FAMILY (must be set beforehand)
+    if [[ -z "$OS_FAMILY" ]]; then
+        echo "[ERROR] OS_FAMILY is not defined. Run detect_os() first."
+        return 1
+    fi
+
+    case "$OS_FAMILY" in
+        debian)
+            PACKAGE_MANAGER="apt"
+            echo -e "\e[36mINFO:\e[0m Debian-based system detected."
+
+            # apt update (non-interactive, suppress noise)
+            UPDATE=$(apt update 2>&1 | grep -E "(All packages are up to date|packages can be updated)")
+
+            if [[ -z "$UPDATE" ]]; then
+                echo -e "\e[33mWARNING:\e[0m Unable to determine update status."
+            else
+                echo "$UPDATE"
+            fi
+            ;;
+
+        rhel)
+            PACKAGE_MANAGER="dnf"
+            echo -e "\e[36mINFO:\e[0m RHEL-based system detected."
+
+            UPDATE=$(dnf check-update 2>&1 | grep -E "(No matches found|packages available)")
+
+            if [[ -z "$UPDATE" ]]; then
+                echo -e "\e[33mWARNING:\e[0m Unable to determine update status."
+            else
+                echo "$UPDATE"
+            fi
+            ;;
+
+        *)
+            echo -e "\e[33mWARNING:\e[0m Unsupported OS family: $OS_FAMILY"
+            return 1
+            ;;
+    esac
+}
+
+
 generate_report() {
     local report_date user hostname result_check_uid_zero_users result_check_world_writable_files result_check_ssh_configuration result_check_open_ports result_check_firewall_status result_check_suid_sgid_binaries
     report_date=$(date "+%Y-%m-%d %H:%M:%S")
@@ -418,30 +473,31 @@ generate_report() {
     result_check_open_ports=$(check_open_ports)
     result_check_firewall_status=$(check_firewall_status)
     result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
+    result_check_security_updates=$(check_security_updates)
 
     echo "Report generated on: $report_date"
     echo -e "\e[31mUser: $user\e[0m"
     echo "Hostname: $hostname"
+    echo "Operative System Family: $OS_FAMILY"
     echo "$result_check_uid_zero_users"
     echo "$result_check_world_writable_files"
     echo "$result_check_ssh_configuration"
     echo "$result_check_open_ports"
     echo "$result_check_firewall_status"
     echo "$result_check_suid_sgid_binaries"
+    echo "$result_check_security_updates"
 }
 
 generate_report_file() {
-    local result_final report_date
+    local report_date
     
     report_date=$(date "+%Y-%m-%d_%H-%M-%S") 
-    result_final=$(generate_report)
-    
-    # Remove  ANSI
-    result_final=$(echo "$result_final" | sed 's/\x1b\[[0-9;]*m//g')
     
     mkdir -p ./reports
     chmod 700 ./reports
-    echo "$result_final" > ./reports/"result_$report_date.txt"
+
+    generate_report | sed 's/\x1b\[[0-9;]*m//g' > ./reports/"result_$report_date.txt"
+
     chmod 600 "./reports/result_$report_date.txt"
     sha256sum "./reports/result_$report_date.txt" > ./reports/"hash_result_$report_date.txt"
 }
@@ -452,8 +508,9 @@ echo "--- Generated content ---"
 echo "" 
 
 #Call functions
-          
-check_root
+
+#check_root
+detect_os
 generate_report_file
 
 if [[ $1 == "-v" ]]; then
