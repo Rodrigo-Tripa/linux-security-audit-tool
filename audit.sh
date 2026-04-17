@@ -472,11 +472,8 @@ generate_report() {
     result_check_ssh_configuration=$(check_ssh_configuration)
     result_check_open_ports=$(check_open_ports)
     result_check_firewall_status=$(check_firewall_status)
-<<<<<<< HEAD
     result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
-=======
-    #result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
->>>>>>> 53b9e14 (feat: implement verbose mode and argument validation)
+    result_check_suid_sgid_binaries=$(check_suid_sgid_binaries)
     result_check_security_updates=$(check_security_updates)
 
     echo "Report generated on: $report_date"
@@ -488,11 +485,8 @@ generate_report() {
     echo "$result_check_ssh_configuration"
     echo "$result_check_open_ports"
     echo "$result_check_firewall_status"
-<<<<<<< HEAD
     echo "$result_check_suid_sgid_binaries"
-=======
-    #echo "$result_check_suid_sgid_binaries"
->>>>>>> 53b9e14 (feat: implement verbose mode and argument validation)
+    echo "$result_check_suid_sgid_binaries"
     echo "$result_check_security_updates"
 }
 
@@ -517,20 +511,11 @@ echo ""
 
 #Call functions
 
-<<<<<<< HEAD
-#check_root
 detect_os
-generate_report_file
-=======
-detect_os
->>>>>>> 53b9e14 (feat: implement verbose mode and argument validation)
 
 if [[ $1 == "-v" ]]; then
     echo "Verbose Mode: ON"
     generate_report
-<<<<<<< HEAD
-fi
-=======
     detect_os
     generate_report_file
 elif [[ $1 == "" ]]; then
@@ -541,4 +526,3 @@ else
     echo "Unknow Argument"
     exit 1
 fi
->>>>>>> 53b9e14 (feat: implement verbose mode and argument validation)
