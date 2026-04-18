@@ -1,7 +1,7 @@
 # Linux Security Audit Tool
 
 ⚠️ **Status:** Alpha – Active Development
-📌 **Current Version:** `v0.4.0-alpha`
+📌 **Current Version:** `v0.4.1-alpha`
 
 A modular Bash-based tool designed to audit the security posture of Linux systems. It detects misconfigurations, weak hardening, and potential privilege escalation vectors, aligning checks with **CIS Benchmarks** and **MITRE ATT&CK** techniques.
 
