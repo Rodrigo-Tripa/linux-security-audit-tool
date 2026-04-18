@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4 (Alpha)
+# Version: 0.4.1 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
