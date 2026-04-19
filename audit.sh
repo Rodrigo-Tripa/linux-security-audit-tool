@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.1 (Alpha)
+# Version: 0.4.2 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -433,7 +433,7 @@ check_security_updates() {
 
             # apt update (non-interactive, suppress noise)
             UPDATE=$(apt update 2>&1 | grep -E "(All packages are up to date|packages can be updated)")
-
+            echo "$PACKAGE_MANAGER"
             if [[ -z "$UPDATE" ]]; then
                 echo -e "[\e[33mWARNING\e[0m] Unable to determine update status."
             else
@@ -446,7 +446,7 @@ check_security_updates() {
             echo -e "[\e[36mINFO\e[0m] RHEL-based system detected."
 
             UPDATE=$(dnf check-update 2>&1 | grep -E "(No matches found|packages available)")
-
+            echo "$PACKAGE_MANAGER"
             if [[ -z "$UPDATE" ]]; then
                 echo -e "[\e[33mWARNING\e[0m] Unable to determine update status."
             else
@@ -459,6 +459,25 @@ check_security_updates() {
             return 1
             ;;
     esac
+}
+
+
+check_no_pass_users() {
+
+    echo ""
+    echo "----- NO PASS USERS -----"
+    echo ""
+
+    no_pass_users=$(awk -F: '$2 == "" { print $1 }' /etc/shadow)
+
+    if [ -n "$no_pass_users" ]; then
+        echo -e "[\e[33mWARNING\e[0m] The following users do not have a password set:"
+        echo "$no_pass_users"
+        echo -e "[\e[35mHELP\e[0m] We recommend setting a password using the command:"
+        echo -e "\e[36mpasswd <user>\e[0m"
+    else
+        echo -e "[\e[32mOK\e[0m] All users have a password."
+    fi
 }
 
 
@@ -481,6 +500,7 @@ generate_report() {
     check_firewall_status
     check_suid_sgid_binaries
     check_security_updates
+    check_no_pass_users
 }
 
 generate_report_file() {
@@ -497,10 +517,6 @@ generate_report_file() {
     sha256sum "./reports/result_$report_date.txt" > ./reports/"hash_result_$report_date.txt"
 }
 
-
-
- 
-
 #Call functions
 
 detect_os
@@ -509,8 +525,8 @@ if [[ $1 == "-v" ]]; then
     echo -e "[\e[36mINFO\e[0m] Verbose Mode: ON"
     echo "--- Generated content ---"
     echo ""
-    generate_report
     detect_os
+    generate_report
     generate_report_file
 elif [[ $1 == "" ]]; then
     echo -e "[\e[36mINFO\e[0m] Verbose Mode: OFF"
