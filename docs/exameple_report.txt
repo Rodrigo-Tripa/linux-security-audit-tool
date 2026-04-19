@@ -78,3 +78,11 @@ WARNING: Suspicious SUID/SGID binaries detected: 9
 
 INFO: Debian-based system detected.
 All packages are up to date.
+
+----- NO PASS USERS -----
+
+[WARNING] The following users do not have a password set:
+test1
+test2
+[HELP] We recommend setting a password using the command:
+passwd <user>
