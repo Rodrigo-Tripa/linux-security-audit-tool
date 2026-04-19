@@ -1,21 +1,21 @@
 # Linux Security Audit Tool
 
-⚠️ **Status:** Alpha – Active Development
-📌 **Current Version:** `v0.4.1-alpha`
+⚠️ **Status:** Alpha – Active Development  
+📌 **Current Version:** `v0.4.2-alpha`
 
-A modular Bash-based tool designed to audit the security posture of Linux systems. It detects misconfigurations, weak hardening, and potential privilege escalation vectors, aligning checks with **CIS Benchmarks** and **MITRE ATT&CK** techniques.
+Lightweight Bash tool for auditing Linux security posture. Focuses on misconfigurations, privilege escalation vectors, and missing hardening controls aligned with **CIS Benchmarks** and **MITRE ATT&CK**.
 
 ---
 
 ## 🎯 Objective
 
-Provide a fast, local, and dependency-light security audit that highlights:
+Provide a fast, local audit with minimal dependencies to identify:
 
-* Privilege escalation risks
-* Misconfigured services
-* Weak access controls
-* Network exposure
-* Missing security controls
+- Privilege escalation vectors  
+- Weak file permissions  
+- Misconfigured services  
+- Network exposure  
+- Missing security controls  
 
 ---
 
@@ -23,229 +23,219 @@ Provide a fast, local, and dependency-light security audit that highlights:
 
 ### 1. UID 0 User Detection
 
-Detects accounts other than `root` with UID 0.
+Detects non-root accounts with UID 0.
 
-* **Risk:** Privilege escalation / persistence
-* **MITRE ATT&CK:** T1078 (Valid Accounts)
+- **Risk:** Privilege escalation / persistence  
+- **MITRE ATT&CK:** T1078 (Valid Accounts)
 
 ---
 
-### 2. World-Writable Files Detection
+### 2. World-Writable Files
 
-Searches for files with `-perm -0002`.
+Searches for:
+`find / -type f -perm -0002`
 
-* Excludes pseudo-filesystems:
+Excludes:
 
-  * `/proc`, `/sys`, `/dev`, `/run`, `/tmp`, `/var/tmp`
-* **Risk:** Unauthorized modification → privilege escalation
-* **MITRE ATT&CK:** T1222 (File Permissions Weakness)
+- `/proc`, `/sys`, `/dev`, `/run`, `/tmp`, `/var/tmp`
+
+- **Risk:** Arbitrary file modification  
+- **MITRE ATT&CK:** T1222 (File Permissions Weakness)
 
 ---
 
 ### 3. SSH Configuration Audit
 
-Uses `sshd -T` (effective config) instead of raw parsing.
+Uses effective configuration:
+`sshd -T`
 
 Checks:
 
-* `PermitRootLogin`
-* `PasswordAuthentication`
-* `MaxAuthTries`
-* `X11Forwarding`
+- `PermitRootLogin`
+- `PasswordAuthentication`
+- `MaxAuthTries`
+- `X11Forwarding`
 
 Also:
 
-* Detects if `sshd` exists
+- Detects `sshd` presence  
+- Validates service state (`systemctl`)  
 
-* Validates service state via `systemctl`
-
-* **Risk:** Remote unauthorized access
-
-* **MITRE ATT&CK:** T1021.004 (SSH)
+- **Risk:** Unauthorized remote access  
+- **MITRE ATT&CK:** T1021.004 (SSH)
 
 ---
 
 ### 4. Open Ports Enumeration
 
 Uses:
+`ss -tulpn`
 
-```bash
-ss -tulpn
-```
+Risk classification:
 
-Categorizes ports:
+| Level  | Ports |
+|--------|------|
+| High   | 21, 22, 23, 139, 445, 3389, 5900, 3306, 5432, 6379, 27017, 11211 |
+| Medium | 25, 53, 8080 |
 
-| Risk Level | Ports                                          |
-| ---------- | ---------------------------------------------- |
-| High       | 21, 22, 23, 445, 3389, 3306, 5432, 6379, 27017 |
-| Medium     | 25, 53, 8080                                   |
-
-* **Risk:** Exposed services / attack surface
-* **MITRE ATT&CK:** T1046 (Network Service Discovery)
+- **Risk:** Increased attack surface  
+- **MITRE ATT&CK:** T1046 (Network Service Discovery)
 
 ---
 
-### 5. Firewall Status Detection
+### 5. Firewall Detection
 
-Detects installation and state of:
+Supports:
 
-* `ufw`
-* `firewalld`
-* `nftables`
-* `iptables`
+- `ufw`
+- `firewalld`
+- `nftables`
+- `iptables`
 
 Logic:
 
-* **CRITICAL** → no firewall installed
+- **CRITICAL** → no firewall installed  
+- **CRITICAL** → installed but inactive  
 
-* **CRITICAL** → installed but none active
-
-* **Risk:** Unfiltered network access
-
-* **MITRE ATT&CK:** T1562 (Impair Defenses)
+- **Risk:** Unfiltered network access  
+- **MITRE ATT&CK:** T1562 (Impair Defenses)
 
 ---
 
 ### 6. SUID/SGID Binaries Audit
 
-Searches:
-
-```bash
-find / -type f -perm /6000
-```
+Search:
+`find / -type f -perm /6000`
 
 Features:
 
-* Excludes pseudo-filesystems
+- Excludes pseudo-filesystems  
+- Whitelist of known binaries  
+- Flags:
+  - Non-root ownership  
+  - Binaries in `/tmp` or `/var/tmp`  
 
-* Uses whitelist of legitimate binaries
+Output:
 
-* Flags:
+| Field | Description |
+|------|------------|
+| PATH | File path |
+| TYPE | SUID / SGID |
+| OWNER | File owner |
+| STATUS | OK / WARNING |
 
-  * Non-root owned binaries
-  * Files in `/tmp` or `/var/tmp`
-
-* Outputs structured table:
-
-  * Path
-  * Type (SUID/SGID)
-  * Owner
-  * Status
-
-* **Risk:** Privilege escalation
-
-* **MITRE ATT&CK:** T1548 (Abuse Elevation Control Mechanism)
+- **Risk:** Privilege escalation  
+- **MITRE ATT&CK:** T1548
 
 ---
 
 ### 7. OS Detection
 
 Parses:
-
-```bash
-/etc/os-release
-```
-
-Supports:
-
-* Debian-based
-* RHEL-based
+`/etc/os-release`
 
 Sets:
-
-```bash
-OS_FAMILY=debian | rhel | unknown
-```
+`OS_FAMILY=debian | rhel | unknown`
 
 ---
 
 ### 8. Security Updates Check
 
-Depends on `OS_FAMILY`:
+| OS Family | Command |
+|----------|--------|
+| Debian   | `apt update` |
+| RHEL     | `dnf check-update` |
 
-| OS Family | Command            |
-| --------- | ------------------ |
-| Debian    | `apt update`       |
-| RHEL      | `dnf check-update` |
+- Detects pending updates  
+- Handles unknown states  
 
-* Detects pending updates
-
-* Flags inability to determine status
-
-* **Risk:** Known vulnerabilities (unpatched CVEs)
-
-* **MITRE ATT&CK:** T1190 (Exploit Public-Facing Application)
+- **Risk:** Unpatched vulnerabilities  
+- **MITRE ATT&CK:** T1190
 
 ---
 
-### 9. Report Generation
+### 9. No Password Users
 
-#### Terminal Output
+Detects accounts without password in:
+`/etc/shadow`
 
-* Structured sections
-* Color-coded:
+- **Risk:** Account abuse / weak authentication  
+- **MITRE ATT&CK:** T1078
 
-  * OK (green)
-  * WARNING (yellow)
-  * CRITICAL (red)
-  * INFO (cyan)
+---
+
+### 10. Report Generation
+
+#### Terminal
+
+- Structured sections  
+- Color-coded output:
+
+| Status   | Meaning |
+|----------|--------|
+| OK       | Secure |
+| WARNING  | Needs review |
+| CRITICAL | Immediate risk |
+| INFO     | Informational |
 
 #### File Output
 
-Generated in:
-
-```bash
-./reports/
-```
+Directory:
+`./reports/`
 
 Files:
 
-* `result_<timestamp>.txt`
-* `hash_result_<timestamp>.txt`
+- `result_<timestamp>.txt`
+- `hash_result_<timestamp>.txt`
 
 Security controls:
 
-```bash
-chmod 700 reports/
-chmod 600 report file
-sha256sum integrity hash
-```
+- `chmod 700 reports/`
+- `chmod 600 report`
+- `sha256sum` integrity hash
 
 ---
 
 ## ▶️ Usage
 
-```bash
-git clone https://github.com/rodrigo-tripa/linux-security-audit-tool.git
-cd linux-security-audit-tool
-chmod +x audit.sh
-sudo ./audit.sh
-```
+`git clone https://github.com/rodrigo-tripa/linux-security-audit-tool.git`  
+`cd linux-security-audit-tool`  
+`chmod +x audit.sh`  
+`sudo ./audit.sh`
 
-Verbose output:
-
-```bash
-sudo ./audit.sh -v
-```
+Verbose mode:
+`sudo ./audit.sh -v`
 
 ---
 
 ## 📋 Requirements
 
-* Linux (Debian/Ubuntu or RHEL-based)
-* Bash 4+
-* Root privileges (recommended)
-* `systemctl`
-* `ss` (iproute2)
-* `find`, `stat`, `sha256sum`
-* `sshd` (optional, for SSH checks)
+- Linux (Debian/Ubuntu or RHEL-based)
+- Bash 4+
+- Root privileges (recommended)
+- `systemctl`
+- `ss` (iproute2)
+- `find`, `stat`, `sha256sum`
+- `sshd` (optional)
 
 ---
 
 ## ⚠️ Known Limitations
 
-* Requires root for full visibility (filesystem + ports)
-* `apt update` may generate noise depending on repo state
-* Firewall detection assumes systemd-based systems
-* Port risk classification is static (can be improved)
-* Using the -v argument for verbose mode might generate output errors if "SUID/SGID BIRNARIES" is enabled
+- Requires root for full visibility  
+- `apt update` output parsing is not fully reliable  
+- Firewall detection assumes systemd  
+- Static port risk classification  
+- `ss` fallback (`ss -tuln`) loses process mapping  
+- Large filesystems → SUID/SGID scan may be slow  
+
+---
+
+## 🔐 Security Best Practices
+
+- Follow Principle of Least Privilege  
+- Restrict report access (`chmod 600`)  
+- Prefer SSH key authentication over passwords  
+- Disable root login via SSH  
+- Maintain active firewall with default deny policy  
+- Periodically audit SUID/SGID binaries  
