@@ -13,6 +13,7 @@ audit.sh          # Main script
 ├── check_firewall_status()         # Check firewall state
 ├── check_suid_sgid_binaries()      # Audit SUID/SGID binaries
 ├── check_security_updates()        # Check for pending updates
+├── check_no_pass_users()           # Check for users without a password
 ├── generate_report()               # Aggregate all checks
 └── generate_report_file()          # Save report + hash
 
@@ -23,4 +24,4 @@ audit.sh          # Main script
 ## Adding New Checks
 1. Create function: `check_<name>()`  
 2. Add to `generate_report()`  
-3. Use severity levels: OK, INFO, WARNING, CRITICAL  
+3. Use severity levels: OK, INFO, HELP, WARNING, CRITICAL  
