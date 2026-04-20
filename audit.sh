@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.2 (Alpha)
+# Version: 0.4.3.1 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -158,9 +158,6 @@ check_ssh_configuration() {
     fi
 }
 
-
-# Development note: Time tracking for implementation of this function.
-#1h:45min
 
 check_open_ports() {
     
@@ -480,6 +477,31 @@ check_no_pass_users() {
     fi
 }
 
+# BETA TEST FUNCTION
+
+check_orphned_files(){
+
+    orphaned_files_etc=$(find /etc -nouser)
+    orphaned_files_home=$(find /home -nouser)
+    orphaned_files_root=$(find /root -nouser)
+    orphaned_files_var=$(find /var -nouser)
+    orphaned_files_usr_local=$(find /usr/local -nouser)
+    orphaned_files_opt=$(find /opt -nouser)
+    orphaned_files_srv=$(find /srv -nouser)
+    orphaned_files_tmp=$(find /tmp -nouser)
+    orphaned_files_var_tmp=$(find /var/tmp -nouser)
+
+    if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
+    if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
+    if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
+    if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
+    if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
+    if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
+    if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
+    if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
+    if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
+
+}
 
 generate_report() {
     local report_date user hostname 
