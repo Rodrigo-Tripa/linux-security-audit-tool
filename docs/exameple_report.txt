@@ -1,4 +1,4 @@
-Report generated on: 2026-04-16 22:35:35
+Report generated on: 2026-04-16 22:22:22
 User: root
 Hostname: Desktop-Moth
 Operative System Family: debian
@@ -86,3 +86,30 @@ test1
 test2
 [HELP] We recommend setting a password using the command:
 passwd <user>
+
+----- UNWONED FILES FOUNDER -----
+
+-- Users type: --
+
+
+[OK] No unowned files found in /home
+[OK] No unowned files found in /etc
+[OK] No unowned files found in /root
+[WARNING] Unowned file found in /var =>
+/var/backups/file_example.gz
+[OK] No unowned files found in /usr/local
+[OK] No unowned files found in /opt
+[OK] No unowned files found in /srv
+[OK] No unowned files found in /tmp
+[OK] No unowned files found in /var/tmp
+-- Groups type: --
+
+[OK] No unowned files found in /home
+[OK] No unowned files found in /etc
+[OK] No unowned files found in /root
+[OK] No unowned files found in /var
+[OK] No unowned files found in /usr/local
+[OK] No unowned files found in /opt
+[OK] No unowned files found in /srv
+[OK] No unowned files found in /tmp
+[OK] No unowned files found in /var/tmp
