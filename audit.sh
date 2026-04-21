@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.3.1 (Alpha)
+# Version: 0.4.4 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -477,30 +477,63 @@ check_no_pass_users() {
     fi
 }
 
-# BETA TEST FUNCTION
 
 check_orphned_files(){
+    echo ""
+    echo "----- UNWONED FILES FOUNDER -----"
+    echo ""
+    
+    check_orphned_files_user(){
+        echo "-- Users type: --"
+        echo ""
+        orphaned_files_etc=$(find /etc -nouser)
+        orphaned_files_home=$(find /home -nouser)
+        orphaned_files_root=$(find /root -nouser)
+        orphaned_files_var=$(find /var -nouser)
+        orphaned_files_usr_local=$(find /usr/local -nouser)
+        orphaned_files_opt=$(find /opt -nouser)
+        orphaned_files_srv=$(find /srv -nouser)
+        orphaned_files_tmp=$(find /tmp -nouser)
+        orphaned_files_var_tmp=$(find /var/tmp -nouser)
 
-    orphaned_files_etc=$(find /etc -nouser)
-    orphaned_files_home=$(find /home -nouser)
-    orphaned_files_root=$(find /root -nouser)
-    orphaned_files_var=$(find /var -nouser)
-    orphaned_files_usr_local=$(find /usr/local -nouser)
-    orphaned_files_opt=$(find /opt -nouser)
-    orphaned_files_srv=$(find /srv -nouser)
-    orphaned_files_tmp=$(find /tmp -nouser)
-    orphaned_files_var_tmp=$(find /var/tmp -nouser)
+        if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
+        if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
+        if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
+        if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
+        if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
+        if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
+        if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
+        if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
+        if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
+    }
 
-    if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
-    if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
-    if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
-    if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
-    if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
-    if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
-    if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
-    if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
-    if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
+    check_orphned_files_group(){
+        echo "-- Groups type: --"
+        echo ""
+        orphaned_files_etc=$(find /etc -nogroup)
+        orphaned_files_home=$(find /home -nogroup)
+        orphaned_files_root=$(find /root -nogroup)
+        orphaned_files_var=$(find /var -nogroup)
+        orphaned_files_usr_local=$(find /usr/local -nogroup)
+        orphaned_files_opt=$(find /opt -nogroup)
+        orphaned_files_srv=$(find /srv -nogroup)
+        orphaned_files_tmp=$(find /tmp -nogroup)
+        orphaned_files_var_tmp=$(find /var/tmp -nogroup)
 
+        if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
+        if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
+        if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
+        if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
+        if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
+        if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
+        if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
+        if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
+        if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
+    }
+
+    check_orphned_files_user
+    echo ""
+    check_orphned_files_group
 }
 
 generate_report() {
@@ -523,6 +556,7 @@ generate_report() {
     check_suid_sgid_binaries
     check_security_updates
     check_no_pass_users
+    check_orphned_files
 }
 
 generate_report_file() {
@@ -558,5 +592,5 @@ elif [[ $1 == "" ]]; then
     generate_report_file
 else
     echo -e "[\e[31mERROR\e[0m] Unknow Argument"
-    exit 1
+    exit1
 fi
