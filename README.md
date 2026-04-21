@@ -1,241 +1,318 @@
 # Linux Security Audit Tool
 
-⚠️ **Status:** Alpha – Active Development  
-📌 **Current Version:** `v0.4.3.1-alpha`
+![Version](https://img.shields.io/badge/version-0.4.4--alpha-orange)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Bash](https://img.shields.io/badge/bash-4%2B-green)
 
-Lightweight Bash tool for auditing Linux security posture. Focuses on misconfigurations, privilege escalation vectors, and missing hardening controls aligned with **CIS Benchmarks** and **MITRE ATT&CK**.
-
----
-
-## 🎯 Objective
-
-Provide a fast, local audit with minimal dependencies to identify:
-
-- Privilege escalation vectors  
-- Weak file permissions  
-- Misconfigured services  
-- Network exposure  
-- Missing security controls  
+Shell script for security auditing on Linux systems. Identifies misconfigurations, privilege escalation vectors, and hardening failures.
 
 ---
 
-## 🚀 Implemented Features
+## Objective
 
-### 1. UID 0 User Detection
+Lightweight offline tool for quick security audits on Linux systems, focused on:
 
-Detects non-root accounts with UID 0.
-
-- **Risk:** Privilege escalation / persistence  
-- **MITRE ATT&CK:** T1078 (Valid Accounts)
-
----
-
-### 2. World-Writable Files
-
-Searches for:
-`find / -type f -perm -0002`
-
-Excludes:
-
-- `/proc`, `/sys`, `/dev`, `/run`, `/tmp`, `/var/tmp`
-
-- **Risk:** Arbitrary file modification  
-- **MITRE ATT&CK:** T1222 (File Permissions Weakness)
+- Detection of suspicious privileged accounts
+- Files with dangerous permissions
+- Insecure SSH configurations
+- High-risk open ports
+- SUID/SGID binaries
+- Orphaned files
+- Firewall and update status
 
 ---
 
-### 3. SSH Configuration Audit
+## Features
 
-Uses effective configuration:
-`sshd -T`
+### 1. **UID 0 Accounts**
+Detects non-root accounts with UID 0 (full privileges).
 
-Checks:
+```bash
+awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/'
+```
 
-- `PermitRootLogin`
-- `PasswordAuthentication`
-- `MaxAuthTries`
-- `X11Forwarding`
-
-Also:
-
-- Detects `sshd` presence  
-- Validates service state (`systemctl`)  
-
-- **Risk:** Unauthorized remote access  
-- **MITRE ATT&CK:** T1021.004 (SSH)
+**Risk:** Backdoor accounts, persistence after compromise.
 
 ---
 
-### 4. Open Ports Enumeration
+### 2. **World-Writable Files**
+Searches for files writable by any user on the system.
 
-Uses:
-`ss -tulpn`
+```bash
+find / -xdev -type f -perm -0002
+```
 
-Risk classification:
+Excludes: `/proc`, `/sys`, `/dev`, `/run`, `/tmp`, `/var/tmp`
 
-| Level  | Ports |
-|--------|------|
-| High   | 21, 22, 23, 139, 445, 3389, 5900, 3306, 5432, 6379, 27017, 11211 |
-| Medium | 25, 53, 8080 |
-
-- **Risk:** Increased attack surface  
-- **MITRE ATT&CK:** T1046 (Network Service Discovery)
+**Risk:** Code injection, modification of binaries or critical configs.
 
 ---
 
-### 5. Firewall Detection
+### 3. **SSH Audit**
+Validates critical OpenSSH configurations using `sshd -T`:
 
-Supports:
+| Directive               | Secure Value           |
+|-------------------------|------------------------|
+| `PermitRootLogin`       | `no` / `prohibit-password` |
+| `PasswordAuthentication`| `no`                   |
+| `MaxAuthTries`          | ≤ 4                    |
+| `X11Forwarding`         | `no`                   |
+
+Also detects:
+- Presence of `sshd` daemon
+- Service state (`systemctl`)
+- Support for `ssh` and `sshd` as unit names
+
+**Risk:** Brute-force, unauthorized remote access, lateral movement.
+
+---
+
+### 4. **Open Ports**
+Enumerates TCP/UDP ports with `ss -tulpn`.
+
+**Risk Classification:**
+
+| Level  | Ports                                                                  |
+|--------|------------------------------------------------------------------------|
+| High   | 21, 22, 23, 139, 445, 3389, 5900, 3306, 5432, 6379, 27017, 11211     |
+| Medium | 25, 53, 8080                                                           |
+
+**Risk:** Increased attack surface, unnecessarily exposed services.
+
+---
+
+### 5. **Firewall Status**
+Checks active firewalls:
 
 - `ufw`
 - `firewalld`
 - `nftables`
 - `iptables`
 
-Logic:
+**Logic:**
+- No firewall installed → `CRITICAL`
+- Firewall installed but inactive → `CRITICAL`
 
-- **CRITICAL** → no firewall installed  
-- **CRITICAL** → installed but inactive  
-
-- **Risk:** Unfiltered network access  
-- **MITRE ATT&CK:** T1562 (Impair Defenses)
+**Risk:** Unfiltered traffic, direct service exposure.
 
 ---
 
-### 6. SUID/SGID Binaries Audit
+### 6. **SUID/SGID Binaries**
+Searches for binaries with SUID/SGID bits:
 
-Search:
-`find / -type f -perm /6000`
+```bash
+find / -xdev -type f -perm /6000
+```
 
-Features:
+**Analysis:**
+- Compares against whitelist of known binaries
+- Flags binaries in `/tmp` or `/var/tmp`
+- Detects non-root ownership
 
-- Excludes pseudo-filesystems  
-- Whitelist of known binaries  
-- Flags:
-  - Non-root ownership  
-  - Binaries in `/tmp` or `/var/tmp`  
+**Output Format:**
 
-Output:
+| Field  | Description          |
+|--------|----------------------|
+| PATH   | Binary path          |
+| TYPE   | SUID / SGID          |
+| OWNER  | File owner           |
+| STATUS | OK / WARNING         |
 
-| Field | Description |
-|------|------------|
-| PATH | File path |
-| TYPE | SUID / SGID |
-| OWNER | File owner |
-| STATUS | OK / WARNING |
-
-- **Risk:** Privilege escalation  
-- **MITRE ATT&CK:** T1548
+**Risk:** Privilege escalation via local exploits.
 
 ---
 
-### 7. OS Detection
+### 7. **OS Detection**
+Parses `/etc/os-release` to identify family:
 
-Parses:
-`/etc/os-release`
-
-Sets:
-`OS_FAMILY=debian | rhel | unknown`
-
----
-
-### 8. Security Updates Check
-
-| OS Family | Command |
-|----------|--------|
-| Debian   | `apt update` |
-| RHEL     | `dnf check-update` |
-
-- Detects pending updates  
-- Handles unknown states  
-
-- **Risk:** Unpatched vulnerabilities  
-- **MITRE ATT&CK:** T1190
+- `debian` → Debian, Ubuntu
+- `rhel` → RHEL, CentOS, Rocky, AlmaLinux, Fedora
+- `unknown` → Other distros
 
 ---
 
-### 9. No Password Users
+### 8. **Security Updates**
+Checks for pending updates:
 
-Detects accounts without password in:
-`/etc/shadow`
+| OS Family | Command           |
+|-----------|-------------------|
+| Debian    | `apt update`      |
+| RHEL      | `dnf check-update`|
 
-- **Risk:** Account abuse / weak authentication  
-- **MITRE ATT&CK:** T1078
+**Limitation:** Output parsing can be inconsistent.
+
+**Risk:** Known vulnerabilities not patched.
 
 ---
 
-### 10. Report Generation
+### 9. **Users Without Password**
+Detects accounts in `/etc/shadow` with empty password field:
 
-#### Terminal
+```bash
+awk -F: '$2 == "" { print $1 }' /etc/shadow
+```
 
-- Structured sections  
-- Color-coded output:
+**Risk:** Login without authentication, control bypass.
 
-| Status   | Meaning |
-|----------|--------|
-| OK       | Secure |
-| WARNING  | Needs review |
-| CRITICAL | Immediate risk |
-| INFO     | Informational |
+---
 
-#### File Output
+### 10. **Orphaned Files**
+Searches for files without valid user or group owner in:
 
-Directory:
-`./reports/`
+- `/etc`, `/home`, `/root`, `/var`
+- `/usr/local`, `/opt`, `/srv`
+- `/tmp`, `/var/tmp`
 
-Files:
+**Separated by type:**
+- `-nouser` (no owner)
+- `-nogroup` (no group)
 
-- `result_<timestamp>.txt`
-- `hash_result_<timestamp>.txt`
+**Risk:** Remnants of deleted accounts, potential payload persistence.
 
-Security controls:
+---
 
+### 11. **Report Generation**
+
+**Terminal:**
+- Colored output (OK, WARNING, CRITICAL, INFO)
+- Hierarchical structure
+
+**File:**
+
+Directory: `./reports/`
+
+Generated files:
+- `result_YYYY-MM-DD_HH-MM-SS.txt` (clean output)
+- `hash_result_YYYY-MM-DD_HH-MM-SS.txt` (SHA256)
+
+**Security:**
 - `chmod 700 reports/`
-- `chmod 600 report`
-- `sha256sum` integrity hash
+- `chmod 600` on reports
+- SHA256 hash for integrity
 
 ---
 
-## ▶️ Usage
+## Installation
 
-`git clone https://github.com/rodrigo-tripa/linux-security-audit-tool.git`  
-`cd linux-security-audit-tool`  
-`chmod +x audit.sh`  
-`sudo ./audit.sh`
-
-Verbose mode:
-`sudo ./audit.sh -v`
+```bash
+git clone https://github.com/rodrigo-tripa/linux-security-audit-tool.git
+cd linux-security-audit-tool
+chmod +x audit.sh
+```
 
 ---
 
-## 📋 Requirements
+## Usage
 
-- Linux (Debian/Ubuntu or RHEL-based)
-- Bash 4+
-- Root privileges (recommended)
-- `systemctl`
-- `ss` (iproute2)
-- `find`, `stat`, `sha256sum`
-- `sshd` (optional)
+### Silent Mode
+Generates report file only:
 
----
+```bash
+sudo ./audit.sh
+```
 
-## ⚠️ Known Limitations
+### Verbose Mode
+Terminal output + file:
 
-- Requires root for full visibility  
-- `apt update` output parsing is not fully reliable  
-- Firewall detection assumes systemd  
-- Static port risk classification  
-- `ss` fallback (`ss -tuln`) loses process mapping  
-- Large filesystems → SUID/SGID scan may be slow  
+```bash
+sudo ./audit.sh -v
+```
+
+**Reports saved in:** `./reports/result_<timestamp>.txt`
 
 ---
 
-## 🔐 Security Best Practices
+## Requirements
 
-- Follow Principle of Least Privilege  
-- Restrict report access (`chmod 600`)  
-- Prefer SSH key authentication over passwords  
-- Disable root login via SSH  
-- Maintain active firewall with default deny policy  
-- Periodically audit SUID/SGID binaries  
+| Component      | Required? | Notes                          |
+|----------------|-----------|--------------------------------|
+| Linux          | ✅        | Debian/Ubuntu or RHEL-based    |
+| Bash           | ✅        | Version 4+                     |
+| Root           | ✅        | Recommended for full visibility|
+| `systemctl`    | ✅        | For service checks             |
+| `ss`           | ✅        | Package `iproute2`             |
+| `find`, `stat` | ✅        | Coreutils                      |
+| `sha256sum`    | ✅        | Coreutils                      |
+| `sshd`         | ⚠️        | Optional (skipped if not installed)|
+
+---
+
+## Known Limitations
+
+### Permissions
+- Scans without root will have reduced visibility
+- Some checks may fail (`/etc/shadow`, etc)
+
+### Performance
+- SUID/SGID scan can be slow on large systems
+- World-writable scan uses `-xdev` (doesn't cross mount points)
+
+### Parsing
+- `apt update` and `dnf check-update` can have unstable outputs
+- Depends on specific text format
+
+### Firewall
+- Assumes systemd for state verification
+- May not detect custom firewalls
+
+### Ports
+- Risk classification is static
+- `ss -tulpn` requires root to see PIDs
+- Fallback `ss -tuln` loses process mapping
+
+---
+
+## Roadmap
+
+- [ ] Support for kernel logs (dmesg)
+- [ ] Audit of suspicious cron jobs
+- [ ] Verification of loaded kernel modules
+- [ ] Analysis of `/etc/sudoers` and `/etc/sudoers.d/`
+- [ ] SELinux/AppArmor status check
+- [ ] Scan for known backdoors (rootkits)
+- [ ] JSON/CSV report output for parsing
+- [ ] Diff mode (compare 2 reports)
+
+---
+
+## Tool Security
+
+### Reports
+- Protected directory (`700`)
+- Files with `600` (owner-only)
+- SHA256 hash to verify integrity
+
+### Recommendations
+- Don't share reports without sanitizing hostnames/IPs
+- Delete old reports (`./reports/`)
+- Run in controlled environment for testing
+
+---
+
+## Contributing
+
+Pull requests are welcome. For large changes:
+
+1. Open an issue first to discuss
+2. Test on both Debian and RHEL-based if possible
+3. Keep code comments in English
+4. Follow existing output style
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE)
+
+---
+
+## Disclaimer
+
+This tool is for auditing **legitimate** systems where you have authorization. I'm not responsible for misuse.
+
+---
+
+## Contact
+
+**GitHub:** [Rodrigo-Tripa](https://github.com/rodrigo-tripa)  
+**Repo:** [linux-security-audit-tool](https://github.com/rodrigo-tripa/linux-security-audit-tool) 
