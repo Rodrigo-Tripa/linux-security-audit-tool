@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.5.2 (Alpha)
+# Version: 0.4.4 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -518,7 +518,7 @@ check_orphaned_files() {
     check_orphaned_by_type() {
         local type_label=$1
         local find_flag=$2
-        echo "-- Users type: --"
+        echo "-- $type_label type: --"
         echo ""
 
         for path in "${search_paths[@]}"; do
