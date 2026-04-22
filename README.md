@@ -1,6 +1,6 @@
 # Linux Security Audit Tool
 
-![Version](https://img.shields.io/badge/version-0.4.4--alpha-orange)
+![Version](https://img.shields.io/badge/version-0.4.5.2--alpha-orange)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Bash](https://img.shields.io/badge/bash-4%2B-green)
 
@@ -17,6 +17,7 @@ Lightweight offline tool for quick security audits on Linux systems, focused on:
 - Insecure SSH configurations
 - High-risk open ports
 - SUID/SGID binaries
+- Sudoers configuration
 - Orphaned files
 - Firewall and update status
 
@@ -171,7 +172,18 @@ Searches for files without valid user or group owner in:
 
 ---
 
-### 11. **Report Generation**
+### 11. **Sudoers Audit**
+Analyzes `/etc/sudoers` and files in `/etc/sudoers.d/` for dangerous configurations.
+
+**Checks:**
+- `NOPASSWD`: Users who can execute commands as root without a password.
+- Broad `ALL` permissions: Users or groups with `ALL=(ALL:ALL) ALL` (excluding root).
+
+**Risk:** Privilege escalation, unauthorized administrative actions.
+
+---
+
+### 12. **Report Generation**
 
 **Terminal:**
 - Colored output (OK, WARNING, CRITICAL, INFO)
@@ -267,7 +279,6 @@ sudo ./audit.sh -v
 - [ ] Support for kernel logs (dmesg)
 - [ ] Audit of suspicious cron jobs
 - [ ] Verification of loaded kernel modules
-- [ ] Analysis of `/etc/sudoers` and `/etc/sudoers.d/`
 - [ ] SELinux/AppArmor status check
 - [ ] Scan for known backdoors (rootkits)
 - [ ] JSON/CSV report output for parsing
@@ -315,4 +326,4 @@ This tool is for auditing **legitimate** systems where you have authorization. I
 ## Contact
 
 **GitHub:** [Rodrigo-Tripa](https://github.com/rodrigo-tripa)  
-**Repo:** [linux-security-audit-tool](https://github.com/rodrigo-tripa/linux-security-audit-tool) 
+**Repo:** [linux-security-audit-tool](https://github.com/rodrigo-tripa/linux-security-audit-tool)
