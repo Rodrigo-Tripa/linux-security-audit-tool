@@ -74,6 +74,13 @@ INFO: Total SUID binaries : 17
 INFO: Total SGID binaries : 17
 WARNING: Suspicious SUID/SGID binaries detected: 9
 
+----- SUDOERS AUDIT -----
+
+[OK] No NOPASSWD entries detected in active configurations.
+
+[WARNING] Broad 'ALL' permissions detected (potential privilege escalation):
+/etc/sudoers:%sudo      ALL=(ALL:ALL) ALL
+
 ----- SECURITY UPDATES -----
 
 INFO: Debian-based system detected.
@@ -91,21 +98,22 @@ passwd <user>
 
 -- Users type: --
 
-
-[OK] No unowned files found in /home
 [OK] No unowned files found in /etc
+[WARNING] Unowned file found in /home =>
+/home/semideus/ficheiro_sem_dono.txt
+
 [OK] No unowned files found in /root
-[WARNING] Unowned file found in /var =>
-/var/backups/file_example.gz
+[OK] No unowned files found in /var
 [OK] No unowned files found in /usr/local
 [OK] No unowned files found in /opt
 [OK] No unowned files found in /srv
 [OK] No unowned files found in /tmp
 [OK] No unowned files found in /var/tmp
+
 -- Groups type: --
 
-[OK] No unowned files found in /home
 [OK] No unowned files found in /etc
+[OK] No unowned files found in /home
 [OK] No unowned files found in /root
 [OK] No unowned files found in /var
 [OK] No unowned files found in /usr/local
