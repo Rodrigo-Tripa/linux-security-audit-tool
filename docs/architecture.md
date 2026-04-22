@@ -12,11 +12,12 @@ audit.sh          # Main script
 ├── check_open_ports()                # List listening ports
 ├── check_firewall_status()           # Check firewall state
 ├── check_suid_sgid_binaries()        # Audit SUID/SGID binaries
+├── check_sudoers_audit()             # Check for sudoers bad configuration
 ├── check_security_updates()          # Check for pending updates
 ├── check_no_pass_users()             # Check for users without a pass
-├── check_orphned_files()             # Check for files without:
-|   ├── check_orphned_files_user()    # User owner
-|   └── check_orphned_files_group()   # Group owner
+├── check_orphaned_files()             # Check for files without:
+|   ├── check_orphaned_by_type("Users", "-nouser")
+|   └── check_orphaned_by_type("Groups", "-nogroup")
 ├── generate_report()                 # Aggregate all checks
 └── generate_report_file()            # Save report + hash
 
