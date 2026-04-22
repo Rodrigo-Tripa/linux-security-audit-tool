@@ -3,7 +3,7 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.4 (Alpha)
+# Version: 0.4.5.2 (Alpha)
 
 #Unofficial Bash Strict Mode
 #set -euo pipefail
@@ -281,6 +281,37 @@ elif [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == 
 fi
 }
 
+check_sudoers_audit() {
+    echo ""
+    echo -e "\e[1m----- SUDOERS AUDIT -----\e[0m"
+    echo ""
+
+    # Check for NOPASSWD entries
+    # We search in /etc/sudoers and all files in /etc/sudoers.d/
+    local nopasswd_checks
+    nopasswd_checks=$(grep -rE "NOPASSWD" /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v "^#")
+
+    if [[ -n "$nopasswd_checks" ]]; then
+        echo -e "[\e[33mWARNING\e[0m] Users allowed to run commands without password (NOPASSWD):"
+        echo "$nopasswd_checks"
+    else
+        echo -e "[\e[32mOK\e[0m] No NOPASSWD entries detected in active configurations."
+    fi
+
+    # Check for broad ALL permissions (excluding root)
+    local broad_permissions
+    broad_permissions=$(grep -rE "ALL=\(ALL(:ALL)?\) ALL" /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v "^#" | grep -vE "^/etc/sudoers:root")
+
+    if [[ -n "$broad_permissions" ]]; then
+        echo ""
+        echo -e "[\e[33mWARNING\e[0m] Broad 'ALL' permissions detected (potential privilege escalation):"
+        echo "$broad_permissions"
+    else
+        echo ""
+        echo -e "[\e[32mOK\e[0m] No broad 'ALL' permissions (other than root) detected."
+    fi
+}
+
 
 check_suid_sgid_binaries() {
 
@@ -477,63 +508,38 @@ check_no_pass_users() {
     fi
 }
 
-
-check_orphned_files(){
+check_orphaned_files() {
     echo ""
-    echo "----- UNWONED FILES FOUNDER -----"
+    echo -e "\e[1m----- UNOWNED FILES FOUND -----\e[0m"
     echo ""
     
-    check_orphned_files_user(){
+    local search_paths=("/etc" "/home" "/root" "/var" "/usr/local" "/opt" "/srv" "/tmp" "/var/tmp")
+
+    check_orphaned_by_type() {
+        local type_label=$1
+        local find_flag=$2
         echo "-- Users type: --"
         echo ""
-        orphaned_files_etc=$(find /etc -nouser)
-        orphaned_files_home=$(find /home -nouser)
-        orphaned_files_root=$(find /root -nouser)
-        orphaned_files_var=$(find /var -nouser)
-        orphaned_files_usr_local=$(find /usr/local -nouser)
-        orphaned_files_opt=$(find /opt -nouser)
-        orphaned_files_srv=$(find /srv -nouser)
-        orphaned_files_tmp=$(find /tmp -nouser)
-        orphaned_files_var_tmp=$(find /var/tmp -nouser)
 
-        if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
-        if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
-        if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
-        if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
-        if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
-        if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
-        if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
-        if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
-        if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
+        for path in "${search_paths[@]}"; do
+            if [[ ! -d "$path" ]]; then continue; fi
+
+            local orphaned
+            orphaned=$(find "$path" "$find_flag" 2>/dev/null)
+
+            if [[ -n "$orphaned" ]]; then
+                echo -e "[\e[33mWARNING\e[0m] Unowned file found in $path =>"
+                echo "$orphaned"
+                echo ""
+            else
+                echo -e "[\e[32mOK\e[0m] No unowned files found in $path"
+            fi
+        done
     }
 
-    check_orphned_files_group(){
-        echo "-- Groups type: --"
-        echo ""
-        orphaned_files_etc=$(find /etc -nogroup)
-        orphaned_files_home=$(find /home -nogroup)
-        orphaned_files_root=$(find /root -nogroup)
-        orphaned_files_var=$(find /var -nogroup)
-        orphaned_files_usr_local=$(find /usr/local -nogroup)
-        orphaned_files_opt=$(find /opt -nogroup)
-        orphaned_files_srv=$(find /srv -nogroup)
-        orphaned_files_tmp=$(find /tmp -nogroup)
-        orphaned_files_var_tmp=$(find /var/tmp -nogroup)
-
-        if [[ -n "$orphaned_files_home" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /home =>";echo "$orphaned_files_home";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /home"; fi
-        if [[ -n "$orphaned_files_etc" ]]; then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /etc =>";echo "$orphaned_files_etc";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /etc"; fi
-        if [[ -n "$orphaned_files_root" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /root =>";echo "$orphaned_files_root";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /root"; fi
-        if [[ -n "$orphaned_files_var" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var =>";echo "$orphaned_files_var";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var"; fi
-        if [[ -n "$orphaned_files_usr_local" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /usr/local =>";echo "$orphaned_files_usr_local";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /usr/local"; fi
-        if [[ -n "$orphaned_files_opt" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /opt =>";echo "$orphaned_files_opt";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /opt"; fi
-        if [[ -n "$orphaned_files_srv" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /srv =>";echo "$orphaned_files_srv";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /srv"; fi
-        if [[ -n "$orphaned_files_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /tmp =>";echo "$orphaned_files_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /tmp"; fi
-        if [[ -n "$orphaned_files_var_tmp" ]];  then echo -e "[\e[33mWARNING\e[0m] Unowned file found in /var/tmp =>";echo "$orphaned_files_var_tmp";echo ""; else echo -e "[\e[32mOK\e[0m] No unowned files found in /var/tmp"; fi
-    }
-
-    check_orphned_files_user
+    check_orphaned_by_type "Users" "-nouser"
     echo ""
-    check_orphned_files_group
+    check_orphaned_by_type "Groups" "-nogroup"
 }
 
 generate_report() {
@@ -554,9 +560,10 @@ generate_report() {
     check_open_ports
     check_firewall_status
     check_suid_sgid_binaries
+    check_sudoers_audit
     check_security_updates
     check_no_pass_users
-    check_orphned_files
+    check_orphaned_files
 }
 
 generate_report_file() {
@@ -581,16 +588,14 @@ if [[ $1 == "-v" ]]; then
     echo -e "[\e[36mINFO\e[0m] Verbose Mode: ON"
     echo "--- Generated content ---"
     echo ""
-    detect_os
     generate_report
     generate_report_file
 elif [[ $1 == "" ]]; then
     echo -e "[\e[36mINFO\e[0m] Verbose Mode: OFF"
     echo "--- Generated content ---"
     echo ""
-    detect_os
     generate_report_file
 else
     echo -e "[\e[31mERROR\e[0m] Unknow Argument"
-    exit1
+    exit 1
 fi
