@@ -1,78 +1,100 @@
-Report generated on: 2026-04-16 22:22:22
+LINUX SECURITY AUDIT REPORT
+----------------------------
+Report generated on: 2026-04-27 21:49:11
 User: root
 Hostname: Desktop-Moth
 Operative System Family: debian
 
 ----- UID ZERO USERS -----
 
-OK: No users with sensitive permissions other than root were detected
+[OK] No unauthorized UID 0 users detected
 
 ----- WORLD WRITABLE FILES -----
 
-WARNING: The following files have permissions that may lead to privilege escalation:
-        /home/semideus/projects/linux-security-audit/docs/exameple_report.txt
+[WARNING] World-writable files found:
+/home/semideus/.vscode-server/data/User/History/-5d4f2147/sp9j.txt
 
 ----- SSH CONFIGURATION -----
 
-INFO: OpenSSH server detected.
-INFO: SSH service (ssh) is active.
-OK: PermitRootLogin is securely configured (prohibit-password).
-WARNING: PasswordAuthentication is enabled.
-WARNING: MaxAuthTries is higher than recommended (6).
-WARNING: X11Forwarding is enabled.
+[INFO] OpenSSH server detected.
+[INFO] SSH service (ssh) is active.
+[OK] PermitRootLogin is securely configured (prohibit-password).
+[WARNING] PasswordAuthentication is enabled.
+[WARNING] MaxAuthTries is higher than recommended (6).
+[WARNING] X11Forwarding is enabled.
 
 ----- OPEN PORTS -----
 
-INFO: ss command installed
-INFO: Active Ports:
+[INFO] ss command installed
+[INFO] Active Ports:
 Netid  Local                     Address:Port        
 udp    10.255.255.254:53         0.0.0.0:*           
 udp    127.0.0.1:323             0.0.0.0:*           
 udp    [::1]:323                 [::]:*              
-tcp    127.0.0.1:34947           0.0.0.0:*           
-tcp    127.0.0.1:39151           0.0.0.0:*           
+tcp    127.0.0.1:44697           0.0.0.0:*           
+tcp    127.0.0.1:38879           0.0.0.0:*           
 tcp    0.0.0.0:22                0.0.0.0:*           
 tcp    10.255.255.254:53         0.0.0.0:*           
 tcp    [::]:22                   [::]:*              
 
-WARNING: High Risk Open Ports:
+[WARNING] High Risk Open Ports:
 22
 
-INFO: Medium Risk Open Ports:
+[INFO] Medium Risk Open Ports:
 53
 
 ----- FIREWALL -----
 
-INFO: Firewall 'nftables' installed
-OK: Firewall 'nftables' is active
+[CRITICAL] No firewall solution found!
+
+----- SYSTEM PACKAGE INTEGRITY -----
+
+[INFO] Verifying Debian/Ubuntu package integrity (dpkg --verify)...
+[OK] All core package files passed integrity check.
+
+----- BRUTE FORCE ANALYSIS -----
+
+[INFO] 'lastb' command not found. Skipping failed login analysis.
 
 ----- SUID/SGID BINARIES -----
 
-INFO: Searching for SUID and SGID binaries. This may take a while...
-INFO: SUID/SGID binaries detected:
+[INFO] Searching for SUID and SGID binaries. This may take a while...
+[INFO] SUID/SGID binaries detected:
 PATH                                               TYPE       OWNER      STATUS      
 /usr/sbin/mount.nfs                                SUID/SGID  root       WARNING
 /usr/sbin/unix_chkpwd                              SUID/SGID  root       WARNING
 /usr/bin/chage                                     SUID/SGID  root       WARNING
 /usr/bin/chfn                                      SUID/SGID  root       WARNING
-/usr/bin/umount                                    SUID/SGID  root       OK 
-/usr/bin/mount                                     SUID/SGID  root       OK 
+/usr/bin/umount                                    SUID/SGID  root       OK
+/usr/bin/mount                                     SUID/SGID  root       OK
 /usr/bin/plocate                                   SUID/SGID  root       WARNING
-/usr/bin/passwd                                    SUID/SGID  root       OK 
-/usr/bin/chsh                                      SUID/SGID  root       OK 
-/usr/bin/sudo                                      SUID/SGID  root       OK 
+/usr/bin/passwd                                    SUID/SGID  root       OK
+/usr/bin/chsh                                      SUID/SGID  root       OK
+/usr/bin/sudo                                      SUID/SGID  root       OK
 /usr/bin/expiry                                    SUID/SGID  root       WARNING
 /usr/bin/ssh-agent                                 SUID/SGID  root       WARNING
-/usr/bin/gpasswd                                   SUID/SGID  root       OK 
-/usr/bin/su                                        SUID/SGID  root       OK 
-/usr/bin/crontab                                   SUID/SGID  root       OK 
+/usr/bin/gpasswd                                   SUID/SGID  root       OK
+/usr/bin/su                                        SUID/SGID  root       OK
+/usr/bin/crontab                                   SUID/SGID  root       OK
 /usr/lib/dbus-1.0/dbus-daemon-launch-helper        SUID/SGID  root       WARNING
 /usr/lib/openssh/ssh-keysign                       SUID/SGID  root       WARNING
 
 Summary:
-INFO: Total SUID binaries : 17
-INFO: Total SGID binaries : 17
-WARNING: Suspicious SUID/SGID binaries detected: 9
+[INFO] Total SUID binaries : 17
+[INFO] Total SGID binaries : 17
+[WARNING] Suspicious SUID/SGID binaries detected: 9
+
+----- PERSISTENCE AUDIT (CRON & SYSTEMD) -----
+
+[INFO] Auditing Cron Directories...
+Files found in cron directories (verify for suspicious names):
+/etc/cron.d:      e2scrub_all        john               .placeholder  sysstat
+/etc/cron.daily:  apt-compat         dpkg               logrotate     .placeholder
+plocate           sysstat            /etc/cron.hourly:  .placeholder  /etc/cron.monthly:
+.placeholder      /etc/cron.weekly:  .placeholder
+
+[INFO] Checking for non-standard Systemd services (user-defined):
+[OK] No custom systemd services found in /etc/systemd/system.
 
 ----- SUDOERS AUDIT -----
 
@@ -83,20 +105,19 @@ WARNING: Suspicious SUID/SGID binaries detected: 9
 
 ----- SECURITY UPDATES -----
 
-INFO: Debian-based system detected.
-All packages are up to date.
+[INFO] Debian-based system detected.
+[OK] System is up to date.
 
------ NO PASS USERS -----
+----- PASSWORD AUDIT -----
 
 [WARNING] The following users do not have a password set:
-test1
+teste1
 test2
-[HELP] We recommend setting a password using the command:
-passwd <user>
+[HELP] We recommend setting a password using: passwd <user>
 
------ UNWONED FILES FOUNDER -----
+----- UNOWNED FILES -----
 
--- Users type: --
+-- Unowned by Users: --
 
 [OK] No unowned files found in /etc
 [WARNING] Unowned file found in /home =>
@@ -106,11 +127,8 @@ passwd <user>
 [OK] No unowned files found in /var
 [OK] No unowned files found in /usr/local
 [OK] No unowned files found in /opt
-[OK] No unowned files found in /srv
-[OK] No unowned files found in /tmp
-[OK] No unowned files found in /var/tmp
 
--- Groups type: --
+-- Unowned by Groups: --
 
 [OK] No unowned files found in /etc
 [OK] No unowned files found in /home
@@ -118,6 +136,3 @@ passwd <user>
 [OK] No unowned files found in /var
 [OK] No unowned files found in /usr/local
 [OK] No unowned files found in /opt
-[OK] No unowned files found in /srv
-[OK] No unowned files found in /tmp
-[OK] No unowned files found in /var/tmp
