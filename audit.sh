@@ -3,67 +3,95 @@
 # Name: Linux Security Audit Tool
 # Author: Rodrigo-Tripa (GitHub)
 # Description: Performs security checks on a Linux system.
-# Version: 0.4.4 (Alpha)
+# Version: 1.0.0
 
 #Unofficial Bash Strict Mode
-#set -euo pipefail
-#IFS=$'\n\t'
+set -uo pipefail
+IFS=$'\n\t'
 
+#---------Colors & Formatting---------
+readonly RED='\e[31m'
+readonly GREEN='\e[32m'
+readonly YELLOW='\e[33m'
+readonly BLUE='\e[36m'
+readonly BOLD='\e[1m'
+readonly NC='\e[0m' # No Color
 
+# Whitelist of common legitimate SUID/SGID binaries
+readonly WHITELIST_SUID_SGID=(
+    "/usr/bin/passwd"
+    "/usr/bin/sudo"
+    "/usr/bin/chsh"
+    "/usr/bin/newgrp"
+    "/usr/bin/gpasswd"
+    "/usr/bin/mount"
+    "/usr/bin/umount"
+    "/usr/bin/su"
+    "/usr/bin/pkexec"
+    "/usr/bin/crontab"
+)
 #---------Functions---------
 
-#Check if the user is root
+show_help() {
+    echo -e "${BOLD}Linux Security Audit Tool v1.0.0${NC}"
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -v, --verbose    Display report in terminal while generating file"
+    echo "  -h, --help       Show this help message"
+    echo ""
+    exit 0
+}
 
+#Check if the user is root
 check_root() {
     if [[ $EUID -ne 0 ]]; then
-        echo -e "[\e[36mINFO\e[0m] This script must be used with root privileges."
+        echo -e "[${BLUE}INFO${NC}] This script must be used with root privileges."
         exit 1
     fi
+}
+
+log_section() {
+    echo ""
+    echo -e "${BOLD}----- $1 -----${NC}"
+    echo ""
 }
 
 #Check if there are users with UID = 0
 
 check_uid_zero_users() {
 
-    echo ""
-    echo -e "\e[1m----- UID ZERO USERS -----\e[0m"
-    echo ""
+    log_section "UID ZERO USERS"
 
-    uid_zero_users=$(awk -F: '$3 == 0 { print $1 }' /etc/passwd | awk '!/root/')
+    local uid_zero_users
+    uid_zero_users=$(awk -F: '$3 == 0 && $1 != "root" { print $1 }' /etc/passwd)
     if [[ -n "$uid_zero_users" ]]; then
-        echo -e "[\e[33mWARNING\e[0m] The following users with sensitive permissions have been detected: $uid_zero_users"
+        echo -e "[${YELLOW}WARNING${NC}] Users with root permissions detected: $uid_zero_users"
     else
-        echo -e "[\e[32mOK\e[0m] No users with sensitive permissions other than root were detected"
+        echo -e "[${GREEN}OK${NC}] No unauthorized UID 0 users detected"
     fi
 }
 
 #Checks if there are world-writable files in the system
-
 check_world_writable_files() {
 
-    echo ""
-    echo -e "\e[1m----- WORLD WRITABLE FILES -----\e[0m"
-    echo ""
+    log_section "WORLD WRITABLE FILES"
 
     world_writable_files=$(find / -xdev \
-      \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp -o -path /var/tmp \) -prune \
+      \( -path /proc -o -path /sys -o -path /dev -o -path /run -o -path /tmp -o -path /var/tmp -o -path /snap \) -prune \
       -o -type f -perm -0002 -print 2>/dev/null)
 
     if [[ -n "$world_writable_files" ]]; then
-        echo -e "[\e[33mWARNING\e[0m] The following files have permissions that may lead to privilege escalation:
-        $world_writable_files"
+        echo -e "[${YELLOW}WARNING${NC}] World-writable files found:\n$world_writable_files"
     else
-        echo -e "[\e[32mOK\e[0m] No Sensitive Files Detected"
+        echo -e "[${GREEN}OK${NC}] No sensitive world-writable files detected"
     fi
 }
 
 #Check if SSH has any risky configurations
 
 check_ssh_configuration() {       
-                          # Note: This function required significant effort due to the complexity of SSH configuration parsing.
-    echo ""                     
-    echo -e "\e[1m----- SSH CONFIGURATION -----\e[0m"
-    echo ""
+    log_section "SSH CONFIGURATION"
 
 #Check if the SSH daemon (sshd) is installed
     if ! command -v sshd >/dev/null 2>&1; then
@@ -92,22 +120,22 @@ check_ssh_configuration() {
 
         case "$ssh_status" in
             active)
-                echo -e "[\e[36mINFO\e[0m] SSH service ($ssh_service) is active."
+                echo -e "[${BLUE}INFO${NC}] SSH service ($ssh_service) is active."
                 ;;
             inactive)
-                echo -e "[\e[33mWARNING\e[0m] SSH service ($ssh_service) is installed but inactive."
+                echo -e "[${YELLOW}WARNING${NC}] SSH service ($ssh_service) is installed but inactive."
                 ;;
             failed)
-                echo -e "[\e[33mWARNING\e[0m] SSH service ($ssh_service) is in a failed state."
+                echo -e "[${YELLOW}WARNING${NC}] SSH service ($ssh_service) is in a failed state."
                 ;;
             activating)
-                echo -e "[\e[36mINFO\e[0m] SSH service ($ssh_service) is activating."
+                echo -e "[${BLUE}INFO${NC}] SSH service ($ssh_service) is activating."
                 ;;
             deactivating)
-                echo -e "[\e[36mINFO\e[0m] SSH service ($ssh_service) is deactivating."
+                echo -e "[${BLUE}INFO${NC}] SSH service ($ssh_service) is deactivating."
                 ;;
             *)
-                echo -e "[\e[33mWARNING\e[0m] Unable to determine SSH service state."
+                echo -e "[${YELLOW}WARNING${NC}] Unable to determine SSH service state."
                 ;;
         esac
     fi
@@ -115,7 +143,7 @@ check_ssh_configuration() {
 #Get the effective SSH configuration
     local ssh_config
     if ! ssh_config=$(sshd -T 2>/dev/null); then
-        echo -e "[\e[33mWARNING\e[0m] Unable to retrieve SSH configuration using 'sshd -T'."
+        echo -e "[${YELLOW}WARNING${NC}] Unable to retrieve SSH configuration using 'sshd -T'."
         return
     fi
 
@@ -131,39 +159,37 @@ check_ssh_configuration() {
 
     # PermitRootLogin
     if [[ "$permit_root_login" == "no" || "$permit_root_login" == "prohibit-password" ]]; then
-        echo -e "[\e[32mOK\e[0m] PermitRootLogin is securely configured ($permit_root_login)."
+        echo -e "[${GREEN}OK${NC}] PermitRootLogin is securely configured ($permit_root_login)."
     else
-        echo -e "[\e[33mWARNING\e[0m] PermitRootLogin is insecurely configured ($permit_root_login)."
+        echo -e "[${YELLOW}WARNING${NC}] PermitRootLogin is insecurely configured ($permit_root_login)."
     fi
 
     # PasswordAuthentication
     if [[ "$password_auth" == "no" ]]; then
-        echo -e "[\e[32mOK\e[0m] PasswordAuthentication is disabled."
+        echo -e "[${GREEN}OK${NC}] PasswordAuthentication is disabled."
     else
-        echo -e "[\e[33mWARNING\e[0m] PasswordAuthentication is enabled."
+        echo -e "[${YELLOW}WARNING${NC}] PasswordAuthentication is enabled."
     fi
 
     # MaxAuthTries
     if [[ "$max_auth_tries" =~ ^[0-9]+$ && "$max_auth_tries" -le 4 ]]; then
-        echo -e "[\e[32mOK\e[0m] MaxAuthTries is securely configured ($max_auth_tries)."
+        echo -e "[${GREEN}OK${NC}] MaxAuthTries is securely configured ($max_auth_tries)."
     else
-        echo -e "[\e[33mWARNING\e[0m] MaxAuthTries is higher than recommended ($max_auth_tries)."
+        echo -e "[${YELLOW}WARNING${NC}] MaxAuthTries is higher than recommended ($max_auth_tries)."
     fi
 
     # X11Forwarding
     if [[ "$x11_forwarding" == "no" ]]; then
-        echo -e "[\e[32mOK\e[0m] X11Forwarding is disabled."
+        echo -e "[${GREEN}OK${NC}] X11Forwarding is disabled."
     else
-        echo -e "[\e[33mWARNING\e[0m] X11Forwarding is enabled."
+        echo -e "[${YELLOW}WARNING${NC}] X11Forwarding is enabled."
     fi
 }
 
 
 check_open_ports() {
     
-    echo ""
-    echo -e "\e[1m----- OPEN PORTS -----\e[0m"
-    echo ""
+    log_section "OPEN PORTS"
 
     local ss_output active_ports active_ports_srisk active_ports_risk
     ss_output=$(ss -tulpn 2>/dev/null || ss -tuln)
@@ -173,118 +199,76 @@ check_open_ports() {
     active_ports_srisk=$(echo "$ss_output" | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(22|3389|445|139|21|23|5900|3306|5432|6379|27017|11211)$' || true)
     active_ports_risk=$(ss -tuln | awk 'NR>1 {split($5, a, ":"); print a[length(a)]}' | sort -n | uniq | grep -E '^(25|53|8080)$')
     if command -v ss >/dev/null 2>&1; then
-        echo -e "[\e[36mINFO\e[0m] ss command installed"
+        echo -e "[${BLUE}INFO${NC}] ss command installed"
         if [[ -n "$active_ports" ]]; then
-            echo -e "[\e[36mINFO\e[0m] Active Ports:"
+            echo -e "[${BLUE}INFO${NC}] Active Ports:"
             echo "$active_ports"
             echo ""
             if [[ -n "$active_ports_srisk" ]]; then
-                echo -e "[\e[33mWARNING\e[0m] High Risk Open Ports:"
+                echo -e "[${YELLOW}WARNING${NC}] High Risk Open Ports:"
                 echo "$active_ports_srisk"
                 echo ""
             else
-                echo -e "[\e[32mOK\e[0m] No High-Risk Ports detected"
+                echo -e "[${GREEN}OK${NC}] No High-Risk Ports detected"
             fi
             if [[ -n "$active_ports_risk" ]]; then
-                echo -e "[\e[36mINFO\e[0m] Medium Risk Open Ports:"
+                echo -e "[${BLUE}INFO${NC}] Medium Risk Open Ports:"
                 echo "$active_ports_risk"
             else 
-                echo -e "[\e[32mOK\e[0m] No Medium-Risk Ports Detected"
+                echo -e "[${GREEN}OK${NC}] No Medium-Risk Ports Detected"
             fi
          else
-            echo -e "[\e[36mINFO\e[0m] No Active Ports Detected"
+            echo -e "[${BLUE}INFO${NC}] No Active Ports Detected"
         fi
     else
-        echo -e "\e[31mERROR:\e[0m ss command NOT installed"
+        echo -e "${RED}ERROR:${NC} ss command NOT installed"
     fi
 }
 
 
 check_firewall_status() {
 
-    echo ""
-    echo -e "\e[1m----- FIREWALL -----\e[0m"
-    echo ""
+    log_section "FIREWALL"
 
-    local detect_firewall_install_ufw detect_firewall_status_ufw
-    local detect_firewall_install_firewalld detect_firewall_status_firewalld
-    local detect_firewall_install_nftables detect_firewall_status_nftables
-    local detect_firewall_install_iptables detect_firewall_status_iptables
+    local fw_found=0
+    local fw_active=0
 
-    # Detect installation
-    detect_firewall_install_ufw=$(command -v ufw)
-    detect_firewall_install_firewalld=$(systemctl list-unit-files firewalld.service 2>/dev/null | grep -q firewalld.service && echo "installed")
-    detect_firewall_install_nftables=$(command -v nft)
-    detect_firewall_install_iptables=$(command -v iptables)
-
-    # Detect status
-    detect_firewall_status_ufw=$(ufw status 2>/dev/null | grep -q "Status: active" && echo "active" || echo "inactive")
-    detect_firewall_status_firewalld=$(systemctl is-active --quiet firewalld && echo "active" || echo "inactive")
-    detect_firewall_status_nftables=$(systemctl is-active --quiet nftables && echo "active" || echo "inactive")
-    detect_firewall_status_iptables=$(iptables -S 2>/dev/null | grep -qE '(^-A)|(^-P (INPUT|FORWARD) (DROP|REJECT))' && echo "active" || echo "inactive")
-
-    # UFW
-    if [[ -n "$detect_firewall_install_ufw" ]]; then
-        echo -e "[\e[36mINFO\e[0m] Firewall 'ufw' installed"
-        if [[ "$detect_firewall_status_ufw" == "active" ]]; then
-            echo -e "[\e[32mOK\e[0m] Firewall 'ufw' is active"
-        else
-            echo -e "[\e[33mWARNING\e[0m] Firewall 'ufw' is inactive"
-        fi
+    # Check UFW
+    if command -v ufw >/dev/null; then
+        fw_found=1
+        echo -ne "[${BLUE}INFO${NC}] Firewall 'ufw' installed. Status: "
+        if ufw status | grep -q "active"; then
+            echo -e "${GREEN}ACTIVE${NC}"; fw_active=1
+        else echo -e "${YELLOW}INACTIVE${NC}"; fi
     fi
 
-    # firewalld
-    if [[ -n "$detect_firewall_install_firewalld" ]]; then
-        echo -e "[\e[36mINFO\e[0m] Firewall 'firewalld' installed"
-        if [[ "$detect_firewall_status_firewalld" == "active" ]]; then
-            echo -e "[\e[32mOK\e[0m] Firewall 'firewalld' is active"
-        else
-            echo -e "[\e[33mWARNING\e[0m] Firewall 'firewalld' is inactive"
-        fi
+    # Check Firewalld
+    if systemctl list-unit-files | grep -q firewalld.service; then
+        fw_found=1
+        echo -ne "[${BLUE}INFO${NC}] Firewall 'firewalld' installed. Status: "
+        if systemctl is-active --quiet firewalld; then
+            echo -e "${GREEN}ACTIVE${NC}"; fw_active=1
+        else echo -e "${YELLOW}INACTIVE${NC}"; fi
     fi
 
-    # nftables
-    if [[ -n "$detect_firewall_install_nftables" ]]; then
-        echo -e "[\e[36mINFO\e[0m] Firewall 'nftables' installed"
-        if [[ "$detect_firewall_status_nftables" == "active" ]]; then
-            echo -e "[\e[32mOK\e[0m] Firewall 'nftables' is active"
-        else
-            echo -e "[\e[33mWARNING\e[0m] Firewall 'nftables' is inactive"
-        fi
+    # Check Iptables (fallback)
+    if command -v iptables >/dev/null; then
+        fw_found=1
+        echo -ne "[${BLUE}INFO${NC}] Firewall 'iptables' installed. Status: "
+        if iptables -L -n | grep -qE '^(DROP|REJECT|ACCEPT)'; then
+            echo -e "${GREEN}ACTIVE (Rules present)${NC}"; fw_active=1
+        else echo -e "${YELLOW}INACTIVE (No rules)${NC}"; fi
     fi
 
-    # iptables
-    if [[ -n "$detect_firewall_install_iptables" ]]; then
-        echo -e "[\e[36mINFO\e[0m] Firewall 'iptables' installed"
-        if [[ "$detect_firewall_status_iptables" == "active" ]]; then
-            echo -e "[\e[32mOK\e[0m] Firewall 'iptables' is active"
-        else
-            echo -e "[\e[33mWARNING\e[0m] Firewall 'iptables' is inactive"
-        fi
+    if [[ $fw_found -eq 0 ]]; then
+        echo -e "[${RED}CRITICAL${NC}] No firewall solution found!"
+    elif [[ $fw_active -eq 0 ]]; then
+        echo -e "[${RED}CRITICAL${NC}] Firewalls are installed but none are active!"
     fi
-
-# Global classification of firewall posture
-
-# Check if no firewall solution is installed
-if [[ -z "$detect_firewall_install_ufw" &&
-      -z "$detect_firewall_install_firewalld" &&
-      -z "$detect_firewall_install_nftables" &&
-      -z "$detect_firewall_install_iptables" ]]; then
-    echo -e "[\e[31mCRITICAL\e[0m] No firewall solution installed"
-
-# Check if firewalls are installed but none are active
-elif [[ ( -n "$detect_firewall_install_ufw" && "$detect_firewall_status_ufw" == "inactive" ) &&
-        ( -n "$detect_firewall_install_firewalld" && "$detect_firewall_status_firewalld" == "inactive" ) &&
-        ( -n "$detect_firewall_install_nftables" && "$detect_firewall_status_nftables" == "inactive" ) &&
-        ( -n "$detect_firewall_install_iptables" && "$detect_firewall_status_iptables" == "inactive" ) ]]; then
-    echo -e "[\e[31mCRITICAL\e[0m] No active firewall detected"
-fi
 }
 
 check_sudoers_audit() {
-    echo ""
-    echo -e "\e[1m----- SUDOERS AUDIT -----\e[0m"
-    echo ""
+    log_section "SUDOERS AUDIT"
 
     # Check for NOPASSWD entries
     # We search in /etc/sudoers and all files in /etc/sudoers.d/
@@ -292,10 +276,10 @@ check_sudoers_audit() {
     nopasswd_checks=$(grep -rE "NOPASSWD" /etc/sudoers /etc/sudoers.d/ 2>/dev/null | grep -v "^#")
 
     if [[ -n "$nopasswd_checks" ]]; then
-        echo -e "[\e[33mWARNING\e[0m] Users allowed to run commands without password (NOPASSWD):"
+        echo -e "[${YELLOW}WARNING${NC}] Users allowed to run commands without password (NOPASSWD):"
         echo "$nopasswd_checks"
     else
-        echo -e "[\e[32mOK\e[0m] No NOPASSWD entries detected in active configurations."
+        echo -e "[${GREEN}OK${NC}] No NOPASSWD entries detected in active configurations."
     fi
 
     # Check for broad ALL permissions (excluding root)
@@ -304,42 +288,25 @@ check_sudoers_audit() {
 
     if [[ -n "$broad_permissions" ]]; then
         echo ""
-        echo -e "[\e[33mWARNING\e[0m] Broad 'ALL' permissions detected (potential privilege escalation):"
+        echo -e "[${YELLOW}WARNING${NC}] Broad 'ALL' permissions detected (potential privilege escalation):"
         echo "$broad_permissions"
     else
         echo ""
-        echo -e "[\e[32mOK\e[0m] No broad 'ALL' permissions (other than root) detected."
+        echo -e "[${GREEN}OK${NC}] No broad 'ALL' permissions (other than root) detected."
     fi
 }
 
 
 check_suid_sgid_binaries() {
-
-    echo ""
-    echo -e "\e[1m----- SUID/SGID BINARIES -----\e[0m"
-    echo ""
+    log_section "SUID/SGID BINARIES"
 
     # Verify if 'find' command is available
     if ! command -v find >/dev/null 2>&1; then
-        echo -e "\e[31mERROR:\e[0m 'find' command is not installed."
+        echo -e "${RED}ERROR:${NC} 'find' command is not installed."
         return
     fi
 
-    echo -e "[\e[36mINFO\e[0m] Searching for SUID and SGID binaries. This may take a while..."
-
-    # Whitelist of common legitimate binaries
-    local whitelist=(
-        "/usr/bin/passwd"
-        "/usr/bin/sudo"
-        "/usr/bin/chsh"
-        "/usr/bin/newgrp"
-        "/usr/bin/gpasswd"
-        "/usr/bin/mount"
-        "/usr/bin/umount"
-        "/usr/bin/su"
-        "/usr/bin/pkexec"
-        "/usr/bin/crontab"
-    )
+    echo -e "[${BLUE}INFO${NC}] Searching for SUID and SGID binaries. This may take a while..."
 
     # Locate SUID/SGID binaries while excluding pseudo-filesystems
     local suid_sgid_files
@@ -348,11 +315,11 @@ check_suid_sgid_binaries() {
         -type f -perm /6000 -print 2>/dev/null)
 
     if [[ -z "$suid_sgid_files" ]]; then
-        echo -e "[\e[32mOK\e[0m] No SUID/SGID binaries found."
+        echo -e "[${GREEN}OK${NC}] No SUID/SGID binaries found."
         return
     fi
 
-    echo -e "[\e[36mINFO\e[0m] SUID/SGID binaries detected:"
+    echo -e "[${BLUE}INFO${NC}] SUID/SGID binaries detected:"
     printf "%-50s %-10s %-10s %-12s\n" "PATH" "TYPE" "OWNER" "STATUS"
 
     local total_suid=0
@@ -362,7 +329,7 @@ check_suid_sgid_binaries() {
     # Function to check if a binary is whitelisted
     is_whitelisted() {
         local file="$1"
-        for item in "${whitelist[@]}"; do
+        for item in "${WHITELIST_SUID_SGID[@]}"; do
             [[ "$file" == "$item" ]] && return 0
         done
         return 1
@@ -389,15 +356,15 @@ check_suid_sgid_binaries() {
 
         # Determine status based on whitelist and ownership
         if is_whitelisted "$file" && [[ "$owner" == "root" ]]; then
-            status="\e[32mOK\e[0m"
+            status="${GREEN}OK${NC}"
         else
-            status="\e[33mWARNING\e[0m"
+            status="${YELLOW}WARNING${NC}"
             ((suspicious++))
         fi
 
         # Additional risk indicator: binaries in temporary directories
         if [[ "$file" =~ ^/(tmp|var/tmp)/ ]]; then
-            status="\e[33mWARNING\e[0m"
+            status="${YELLOW}WARNING${NC}"
             ((suspicious++))
         fi
 
@@ -407,13 +374,13 @@ check_suid_sgid_binaries() {
 
     echo ""
     echo "Summary:"
-    echo -e "[\e[36mINFO\e[0m] Total SUID binaries : $total_suid"
-    echo -e "[\e[36mINFO\e[0m] Total SGID binaries : $total_sgid"
+    echo -e "[${BLUE}INFO${NC}] Total SUID binaries : $total_suid"
+    echo -e "[${BLUE}INFO${NC}] Total SGID binaries : $total_sgid"
 
     if [[ "$suspicious" -eq 0 ]]; then
-        echo -e "[\e[32mOK\e[0m] No suspicious SUID/SGID binaries detected."
+        echo -e "[${GREEN}OK${NC}] No suspicious SUID/SGID binaries detected."
     else
-        echo -e "[\e[33mWARNING\e[0m] Suspicious SUID/SGID binaries detected: $suspicious"
+        echo -e "[${YELLOW}WARNING${NC}] Suspicious SUID/SGID binaries detected: $suspicious"
     fi
 }
 
@@ -422,7 +389,7 @@ detect_os() {
     if [[ -r /etc/os-release ]]; then
         . /etc/os-release
     else
-        echo -e "\e[31mERROR:\e[0m Unable to read /etc/os-release"
+        echo -e "${RED}ERROR:${NC} Unable to read /etc/os-release"
         return 1
     fi
 
@@ -443,47 +410,43 @@ detect_os() {
 
 
 check_security_updates() {
-    local PACKAGE_MANAGER UPDATE
-    echo ""
-    echo "----- SECURITY UPDATES -----"
-    echo ""
+    log_section "SECURITY UPDATES"
 
     # Validate OS_FAMILY (must be set beforehand)
     if [[ -z "$OS_FAMILY" ]]; then
-        echo -e "\e[31mERROR:\e[0m OS_FAMILY is not defined. Run detect_os() first."
+        echo -e "${RED}ERROR:${NC} OS_FAMILY is not defined. Run detect_os() first."
         return 1
     fi
 
     case "$OS_FAMILY" in
         debian)
-            PACKAGE_MANAGER="apt"
-            echo -e "[\e[36mINFO\e[0m] Debian-based system detected."
+            echo -e "[${BLUE}INFO${NC}] Debian-based system detected."
 
-            # apt update (non-interactive, suppress noise)
-            UPDATE=$(apt update 2>&1 | grep -E "(All packages are up to date|packages can be updated)")
-            echo "$PACKAGE_MANAGER"
-            if [[ -z "$UPDATE" ]]; then
-                echo -e "[\e[33mWARNING\e[0m] Unable to determine update status."
+            local updates
+            updates=$(apt list --upgradable 2>/dev/null | grep -c "upgradable" || true)
+            if [[ "$updates" -gt 0 ]]; then
+                echo -e "[${YELLOW}WARNING${NC}] There are $updates packages that can be updated."
+                echo -e "[${BLUE}HELP${NC}] Run 'apt list --upgradable' for details."
             else
-                echo "$UPDATE"
+                echo -e "[${GREEN}OK${NC}] System is up to date."
             fi
             ;;
 
         rhel)
-            PACKAGE_MANAGER="dnf"
-            echo -e "[\e[36mINFO\e[0m] RHEL-based system detected."
+            echo -e "[${BLUE}INFO${NC}] RHEL-based system detected."
 
-            UPDATE=$(dnf check-update 2>&1 | grep -E "(No matches found|packages available)")
-            echo "$PACKAGE_MANAGER"
-            if [[ -z "$UPDATE" ]]; then
-                echo -e "[\e[33mWARNING\e[0m] Unable to determine update status."
+            local updates
+            updates=$(dnf check-update --quiet | grep -c "." || true)
+            if [[ "$updates" -gt 0 ]]; then
+                echo -e "[${YELLOW}WARNING${NC}] Security updates available."
+                echo -e "[${BLUE}HELP${NC}] Run 'dnf check-update' for details."
             else
-                echo "$UPDATE"
+                echo -e "[${GREEN}OK${NC}] System is up to date."
             fi
             ;;
 
         *)
-            echo -e "[\e[33mWARNING\e[0m] Unsupported OS family: $OS_FAMILY"
+            echo -e "[${YELLOW}WARNING${NC}] Unsupported OS family: $OS_FAMILY"
             return 1
             ;;
     esac
@@ -491,34 +454,115 @@ check_security_updates() {
 
 
 check_no_pass_users() {
-
-    echo ""
-    echo "----- NO PASS USERS -----"
-    echo ""
+    log_section "PASSWORD AUDIT"
 
     no_pass_users=$(awk -F: '$2 == "" { print $1 }' /etc/shadow)
 
     if [ -n "$no_pass_users" ]; then
-        echo -e "[\e[33mWARNING\e[0m] The following users do not have a password set:"
+        echo -e "[${YELLOW}WARNING${NC}] The following users do not have a password set:"
         echo "$no_pass_users"
-        echo -e "[\e[35mHELP\e[0m] We recommend setting a password using the command:"
-        echo -e "\e[36mpasswd <user>\e[0m"
+        echo -e "[${BLUE}HELP${NC}] We recommend setting a password using: ${BLUE}passwd <user>${NC}"
     else
-        echo -e "[\e[32mOK\e[0m] All users have a password."
+        echo -e "[${GREEN}OK${NC}] All users have a password defined."
+    fi
+}
+
+check_package_integrity() {
+    log_section "SYSTEM PACKAGE INTEGRITY"
+
+    if [[ "$OS_FAMILY" == "debian" ]]; then
+        echo -e "[${BLUE}INFO${NC}] Verifying Debian/Ubuntu package integrity (dpkg --verify)..."
+        # Note: dpkg --verify only checks modified timestamps/sizes for core files. 
+        # For deep hash verification, 'debsums' is better but not always installed.
+        local integrity_issues
+        integrity_issues=$(dpkg --verify 2>/dev/null | grep -E "^..5" || true)
+        
+        if [[ -n "$integrity_issues" ]]; then
+            echo -e "[${RED}CRITICAL${NC}] Modified system binaries detected!"
+            echo "$integrity_issues"
+        else
+            echo -e "[${GREEN}OK${NC}] All core package files passed integrity check."
+        fi
+
+    elif [[ "$OS_FAMILY" == "rhel" ]]; then
+        echo -e "[${BLUE}INFO${NC}] Verifying RHEL-based package integrity (rpm -Va)..."
+        local rpm_verify
+        # Filter out common configuration file changes (c), documentation (d), and ghost files (g)
+        rpm_verify=$(rpm -Va --nofiledigest 2>/dev/null | grep -vE "^\.\.[ \.]+[c|d|g|l|r] " || true)
+        
+        if [[ -n "$rpm_verify" ]]; then
+            echo -e "[${YELLOW}WARNING${NC}] Modified system files detected:"
+            echo "$rpm_verify"
+        else
+            echo -e "[${GREEN}OK${NC}] No modified binaries detected."
+        fi
+    fi
+}
+
+check_failed_logins() {
+    log_section "BRUTE FORCE ANALYSIS"
+
+    if ! command -v lastb >/dev/null 2>&1; then
+        echo -e "[${BLUE}INFO${NC}] 'lastb' command not found. Skipping failed login analysis."
+        return
+    fi
+
+    local failed_attempts
+    failed_attempts=$(lastb -n 50 | head -n -2) # Get last 50 entries
+
+    if [[ -n "$failed_attempts" ]]; then
+        echo -e "[${YELLOW}WARNING${NC}] Recent failed login attempts detected (last 50):"
+        echo "$failed_attempts"
+        echo ""
+        echo -e "[${BLUE}INFO${NC}] Top 5 offending IPs/Users:"
+        lastb | awk '{print $1 " " $3}' | sort | uniq -c | sort -nr | head -n 5
+    else
+        echo -e "[${GREEN}OK${NC}] No failed login attempts recorded."
+    fi
+}
+
+check_persistence_mechanisms() {
+    log_section "PERSISTENCE AUDIT (CRON & SYSTEMD)"
+
+    # 1. Cron jobs review
+    echo -e "[${BLUE}INFO${NC}] Auditing Cron Directories..."
+    local cron_files
+    cron_files=$(ls -A /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.monthly /etc/cron.weekly 2>/dev/null)
+    
+    if [[ -n "$cron_files" ]]; then
+        echo -e "Files found in cron directories (verify for suspicious names):"
+        echo "$cron_files" | xargs -n5 | column -t
+    fi
+
+    # 2. Check for rc.local
+    if [[ -f /etc/rc.local ]]; then
+        echo -e "[${YELLOW}WARNING${NC}] /etc/rc.local exists. Content:"
+        cat /etc/rc.local | grep -v "^#" || true
+    fi
+
+    # 3. Non-standard systemd services
+    echo ""
+    echo -e "[${BLUE}INFO${NC}] Checking for non-standard Systemd services (user-defined):"
+    local user_services
+    user_services=$(find /etc/systemd/system -maxdepth 1 -type f -name "*.service" 2>/dev/null)
+    
+    if [[ -n "$user_services" ]]; then
+        echo -e "Review these custom services:"
+        echo "$user_services"
+    else
+        echo -e "[${GREEN}OK${NC}] No custom systemd services found in /etc/systemd/system."
     fi
 }
 
 check_orphaned_files() {
-    echo ""
-    echo -e "\e[1m----- UNOWNED FILES FOUND -----\e[0m"
-    echo ""
+    log_section "UNOWNED FILES"
     
-    local search_paths=("/etc" "/home" "/root" "/var" "/usr/local" "/opt" "/srv" "/tmp" "/var/tmp")
+    local search_paths=("/etc" "/home" "/root" "/var" "/usr/local" "/opt")
 
     check_orphaned_by_type() {
         local type_label=$1
         local find_flag=$2
-        echo "-- $type_label type: --"
+        echo "-- Unowned by $type_label: --"
         echo ""
 
         for path in "${search_paths[@]}"; do
@@ -528,11 +572,11 @@ check_orphaned_files() {
             orphaned=$(find "$path" "$find_flag" 2>/dev/null)
 
             if [[ -n "$orphaned" ]]; then
-                echo -e "[\e[33mWARNING\e[0m] Unowned file found in $path =>"
+                echo -e "[${YELLOW}WARNING${NC}] Unowned file found in $path =>"
                 echo "$orphaned"
                 echo ""
             else
-                echo -e "[\e[32mOK\e[0m] No unowned files found in $path"
+                echo -e "[${GREEN}OK${NC}] No unowned files found in $path"
             fi
         done
     }
@@ -548,10 +592,11 @@ generate_report() {
     user=$(whoami)
     hostname=$(hostname)
 
-
+    echo -e "${BOLD}LINUX SECURITY AUDIT REPORT${NC}"
+    echo "----------------------------"
     echo "Report generated on: $report_date"
-    echo -e "\e[31mUser: $user\e[0m"
-    echo "Hostname: $hostname"
+    echo -e "User: ${BLUE}$user${NC}"
+    echo "Hostname: ${BOLD}$hostname${NC}"
     echo "Operative System Family: $OS_FAMILY"
     check_root
     check_uid_zero_users
@@ -559,7 +604,10 @@ generate_report() {
     check_ssh_configuration
     check_open_ports
     check_firewall_status
+    check_package_integrity
+    check_failed_logins
     check_suid_sgid_binaries
+    check_persistence_mechanisms
     check_sudoers_audit
     check_security_updates
     check_no_pass_users
@@ -567,14 +615,16 @@ generate_report() {
 }
 
 generate_report_file() {
-    local report_date
+    local report_date report_content
     
     report_date=$(date "+%Y-%m-%d_%H-%M-%S") 
     
     mkdir -p ./reports
     chmod 700 ./reports
 
-    generate_report | sed 's/\x1b\[[0-9;]*m//g' > ./reports/"result_$report_date.txt"
+    # Capture report content once to avoid re-executing functions
+    report_content=$(generate_report | sed 's/\x1b\[[0-9;]*m//g')
+    echo "$report_content" > ./reports/"result_$report_date.txt"
 
     chmod 600 "./reports/result_$report_date.txt"
     sha256sum "./reports/result_$report_date.txt" > ./reports/"hash_result_$report_date.txt"
@@ -582,20 +632,25 @@ generate_report_file() {
 
 #Call functions
 
+VERBOSE=0
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -v|--verbose) VERBOSE=1 ;;
+        -h|--help) show_help ;;
+        *) echo -e "${RED}ERROR:${NC} Unknown argument $1"; exit 1 ;;
+    esac
+    shift
+done
+
 detect_os
 
-if [[ $1 == "-v" ]]; then
-    echo -e "[\e[36mINFO\e[0m] Verbose Mode: ON"
+if [[ $VERBOSE -eq 1 ]]; then
+    echo -e "[${BLUE}INFO${NC}] Verbose Mode: ON"
     echo "--- Generated content ---"
     echo ""
     generate_report
     generate_report_file
-elif [[ $1 == "" ]]; then
-    echo -e "[\e[36mINFO\e[0m] Verbose Mode: OFF"
-    echo "--- Generated content ---"
-    echo ""
-    generate_report_file
 else
-    echo -e "[\e[31mERROR\e[0m] Unknow Argument"
-    exit 1
+    echo -e "[${BLUE}INFO${NC}] Running Audit... (File will be saved in ./reports/)"
+    generate_report_file
 fi
