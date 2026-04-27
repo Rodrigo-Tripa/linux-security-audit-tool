@@ -13,6 +13,9 @@ audit.sh          # Main script
 ├── check_firewall_status()           # Check firewall state
 ├── check_suid_sgid_binaries()        # Audit SUID/SGID binaries
 ├── check_sudoers_audit()             # Check for sudoers bad configuration
+├── check_package_integrity()         # Verify system package integrity
+├── check_failed_logins()             # Analyze failed login attempts
+├── check_persistence_mechanisms()    # Audit cron jobs and systemd services
 ├── check_security_updates()          # Check for pending updates
 ├── check_no_pass_users()             # Check for users without a pass
 ├── check_orphaned_files()             # Check for files without:
