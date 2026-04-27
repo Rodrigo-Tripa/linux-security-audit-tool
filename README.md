@@ -1,6 +1,6 @@
 # Linux Security Audit Tool
 
-![Version](https://img.shields.io/badge/version-0.4.5.2--alpha-orange)
+![Version](https://img.shields.io/badge/version-1.0.0-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Bash](https://img.shields.io/badge/bash-4%2B-green)
 
@@ -18,6 +18,9 @@ Lightweight offline tool for quick security audits on Linux systems, focused on:
 - High-risk open ports
 - SUID/SGID binaries
 - Sudoers configuration
+- System package integrity
+- Brute force login attempts
+- Persistence mechanisms (cron, systemd)
 - Orphaned files
 - Firewall and update status
 
@@ -131,7 +134,7 @@ Parses `/etc/os-release` to identify family:
 - `unknown` → Other distros
 
 ---
-
+### 11. **Security Updates**
 ### 8. **Security Updates**
 Checks for pending updates:
 
@@ -145,7 +148,7 @@ Checks for pending updates:
 **Risk:** Known vulnerabilities not patched.
 
 ---
-
+### 12. **Users Without Password**
 ### 9. **Users Without Password**
 Detects accounts in `/etc/shadow` with empty password field:
 
@@ -156,7 +159,7 @@ awk -F: '$2 == "" { print $1 }' /etc/shadow
 **Risk:** Login without authentication, control bypass.
 
 ---
-
+### 13. **Orphaned Files**
 ### 10. **Orphaned Files**
 Searches for files without valid user or group owner in:
 
@@ -171,7 +174,7 @@ Searches for files without valid user or group owner in:
 **Risk:** Remnants of deleted accounts, potential payload persistence.
 
 ---
-
+### 14. **Sudoers Audit**
 ### 11. **Sudoers Audit**
 Analyzes `/etc/sudoers` and files in `/etc/sudoers.d/` for dangerous configurations.
 
@@ -182,7 +185,7 @@ Analyzes `/etc/sudoers` and files in `/etc/sudoers.d/` for dangerous configurati
 **Risk:** Privilege escalation, unauthorized administrative actions.
 
 ---
-
+### 15. **Report Generation**
 ### 12. **Report Generation**
 
 **Terminal:**
@@ -324,6 +327,3 @@ This tool is for auditing **legitimate** systems where you have authorization. I
 ---
 
 ## Contact
-
-**GitHub:** [Rodrigo-Tripa](https://github.com/rodrigo-tripa)  
-**Repo:** [linux-security-audit-tool](https://github.com/rodrigo-tripa/linux-security-audit-tool)
